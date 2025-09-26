@@ -11,7 +11,8 @@ module SpellKit
 
   class << self
     def load!(unigrams_path:, symbols_path: nil, cas_path: nil, skus_path: nil,
-              species_path: nil, edit_distance: 1, frequency_threshold: 10.0, **_options)
+              species_path: nil, manifest_path: nil, edit_distance: 1,
+              frequency_threshold: 10.0, **_options)
       config = {
         "unigrams_path" => unigrams_path.to_s,
         "edit_distance" => edit_distance,
@@ -22,6 +23,7 @@ module SpellKit
       config["cas_path"] = cas_path.to_s if cas_path
       config["skus_path"] = skus_path.to_s if skus_path
       config["species_path"] = species_path.to_s if species_path
+      config["manifest_path"] = manifest_path.to_s if manifest_path
 
       load_full(config)
     end

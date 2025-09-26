@@ -1,0 +1,7 @@
+{
+  "version": "test-2025-01-01",
+  "min_count": 5,
+  "total_terms": 20,
+  "built_at": "2025-01-01T00:00:00Z",
+  "sha256": "test_checksum"
+}

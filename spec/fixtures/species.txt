@@ -1,0 +1,11 @@
+# Common species names
+rat
+mouse
+human
+rabbit
+dog
+cat
+pig
+monkey
+zebrafish
+chicken

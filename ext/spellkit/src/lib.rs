@@ -7,11 +7,17 @@ use std::sync::{Arc, RwLock};
 use symspell::SymSpell;
 use guards::Guards;
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 struct SpellKitState {
     symspell: Option<SymSpell>,
     guards: Guards,
     loaded: bool,
     frequency_threshold: f64,
+    loaded_at: Option<u64>,
+    dictionary_size: usize,
+    edit_distance: usize,
+    manifest_version: Option<String>,
 }
 
 impl SpellKitState {
@@ -20,7 +26,11 @@ impl SpellKitState {
             symspell: None,
             guards: Guards::new(),
             loaded: false,
-            frequency_threshold: 10.0, // Default: candidate must have 10x frequency to override
+            frequency_threshold: 10.0,
+            loaded_at: None,
+            dictionary_size: 0,
+            edit_distance: 1,
+            manifest_version: None,
         }
     }
 }
@@ -58,6 +68,7 @@ fn load_full(ruby: &Ruby, config: RHash) -> Result<(), Error> {
         }
     }
 
+    let dictionary_size = words.len();
     let mut symspell = SymSpell::new(edit_dist);
     symspell.load_dictionary(words);
 
@@ -97,6 +108,29 @@ fn load_full(ruby: &Ruby, config: RHash) -> Result<(), Error> {
         .and_then(|v: Value| TryConvert::try_convert(v).ok())
         .unwrap_or(10.0);
 
+    // Load manifest if provided
+    let manifest_version = if let Some(manifest_path) = config.get("manifest_path") {
+        let path: String = TryConvert::try_convert(manifest_path)?;
+        if let Ok(content) = std::fs::read_to_string(path) {
+            if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&content) {
+                manifest.get("version")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let loaded_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_secs());
+
     STATE.with(|state| {
         let state_ref = state.borrow();
         let mut state = state_ref.write().unwrap();
@@ -104,6 +138,10 @@ fn load_full(ruby: &Ruby, config: RHash) -> Result<(), Error> {
         state.guards = guards;
         state.frequency_threshold = frequency_threshold;
         state.loaded = true;
+        state.loaded_at = loaded_at;
+        state.dictionary_size = dictionary_size;
+        state.edit_distance = edit_dist;
+        state.manifest_version = manifest_version;
     });
 
     Ok(())
@@ -194,6 +232,51 @@ fn correct_tokens(ruby: &Ruby, tokens: RArray, use_guard: Option<bool>) -> Resul
     Ok(result)
 }
 
+fn stats(ruby: &Ruby) -> Result<RHash, Error> {
+    STATE.with(|state| {
+        let state_ref = state.borrow();
+        let state = state_ref.read().unwrap();
+
+        let stats = RHash::new();
+
+        if !state.loaded {
+            stats.aset("loaded", false)?;
+            return Ok(stats);
+        }
+
+        stats.aset("loaded", true)?;
+        stats.aset("dictionary_size", state.dictionary_size)?;
+        stats.aset("edit_distance", state.edit_distance)?;
+
+        if let Some(loaded_at) = state.loaded_at {
+            stats.aset("loaded_at", loaded_at)?;
+        }
+
+        if let Some(ref version) = state.manifest_version {
+            stats.aset("version", version.as_str())?;
+        }
+
+        Ok(stats)
+    })
+}
+
+fn healthcheck(ruby: &Ruby) -> Result<(), Error> {
+    STATE.with(|state| {
+        let state_ref = state.borrow();
+        let state = state_ref.read().unwrap();
+
+        if !state.loaded {
+            return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded"));
+        }
+
+        if state.symspell.is_none() {
+            return Err(Error::new(ruby.exception_runtime_error(), "SymSpell not initialized"));
+        }
+
+        Ok(())
+    })
+}
+
 #[magnus::init]
 fn init(_ruby: &Ruby) -> Result<(), Error> {
     let module = define_module("SpellKit")?;
@@ -202,6 +285,8 @@ fn init(_ruby: &Ruby) -> Result<(), Error> {
     module.define_singleton_method("suggest", function!(suggest, 2))?;
     module.define_singleton_method("correct_if_unknown", function!(correct_if_unknown, 2))?;
     module.define_singleton_method("correct_tokens", function!(correct_tokens, 2))?;
+    module.define_singleton_method("stats", function!(stats, 0))?;
+    module.define_singleton_method("healthcheck", function!(healthcheck, 0))?;
 
     Ok(())
 }
