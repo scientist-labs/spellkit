@@ -37,7 +37,7 @@ dict.write("hello\t10000\nworld\t5000\nruby\t3000\ntest\t2000\n")
 dict.close
 
 # Load the dictionary
-SpellKit.load!(unigrams_path: dict.path, edit_distance: 1)
+SpellKit.load!(dictionary_path: dict.path, edit_distance: 1)
 
 # Get suggestions for a misspelled word
 suggestions = SpellKit.suggest("helo", 5)
@@ -71,7 +71,7 @@ require "spellkit"
 
 # Load your dictionary
 SpellKit.load!(
-  unigrams_path: "models/unigrams.tsv",
+  dictionary_path: "models/unigrams.tsv",
   edit_distance: 1
 )
 
@@ -96,13 +96,13 @@ Protect specific terms from correction using exact matches or regex patterns:
 ```ruby
 # Load with exact-match protected terms
 SpellKit.load!(
-  unigrams_path: "models/unigrams.tsv",
+  dictionary_path: "models/unigrams.tsv",
   protected_path: "models/protected.txt"   # file with terms to protect
 )
 
 # Protect terms matching regex patterns
 SpellKit.load!(
-  unigrams_path: "models/unigrams.tsv",
+  dictionary_path: "models/unigrams.tsv",
   protected_patterns: [
     /^[A-Z]{3,4}\d+$/,        # gene symbols like CDK10, BRCA1
     /^\d{2,7}-\d{2}-\d$/,     # CAS numbers like 7732-18-5
@@ -112,7 +112,7 @@ SpellKit.load!(
 
 # Or combine both
 SpellKit.load!(
-  unigrams_path: "models/unigrams.tsv",
+  dictionary_path: "models/unigrams.tsv",
   protected_path: "models/protected.txt",
   protected_patterns: [/^[A-Z]{3,4}\d+$/]
 )
@@ -129,7 +129,7 @@ SpellKit.correct_tokens(tokens, guard: :domain)
 
 ## Dictionary Format
 
-### Unigrams (required)
+### Dictionary (required)
 
 Tab-separated file with term and frequency:
 
@@ -162,7 +162,7 @@ SpecialTerm
 
 ```ruby
 SpellKit.load!(
-  unigrams_path: "models/unigrams.tsv",              # required
+  dictionary_path: "models/unigrams.tsv",              # required
   protected_path: "models/protected.txt",            # optional
   protected_patterns: [/^[A-Z]{3,4}\d+$/],           # optional
   manifest_path: "models/symspell.json",             # optional
@@ -178,7 +178,7 @@ SpellKit.load!(
 Load or reload dictionaries. Thread-safe atomic swap.
 
 **Options:**
-- `unigrams_path:` (required) - Path to TSV file with term<TAB>frequency
+- `dictionary_path:` (required) - Path to TSV file with term<TAB>frequency
 - `protected_path:` (optional) - Path to file with protected terms (one per line)
 - `protected_patterns:` (optional) - Array of Regexp or String patterns to protect
 - `manifest_path:` (optional) - Path to JSON manifest with version info
@@ -250,7 +250,7 @@ protected_patterns: [
 ```ruby
 # config/initializers/spellkit.rb
 SpellKit.load!(
-  unigrams_path: Rails.root.join("models/unigrams.tsv"),
+  dictionary_path: Rails.root.join("models/unigrams.tsv"),
   protected_path: Rails.root.join("models/protected.txt"),
   protected_patterns: [
     /^[A-Z]{3,4}\d+$/,     # Product codes
@@ -284,7 +284,7 @@ Target for production (1-5M terms):
 
 ## Building Dictionaries
 
-Create your unigrams dictionary from your corpus:
+Create your dictionary from your corpus:
 
 ```ruby
 # example_builder.rb
@@ -302,7 +302,7 @@ end
 
 # Filter by minimum count and write
 min_count = 5
-File.open("unigrams.tsv", "w") do |f|
+File.open("dictionary.tsv", "w") do |f|
   counts.select { |_, count| count >= min_count }
         .sort_by { |_, count| -count }
         .each { |term, count| f.puts "#{term}\t#{count}" }

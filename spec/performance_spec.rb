@@ -4,7 +4,7 @@ RSpec.describe "Performance (M5)" do
   let(:test_unigrams) { File.expand_path("fixtures/test_unigrams.tsv", __dir__) }
 
   before do
-    SpellKit.load!(unigrams_path: test_unigrams, edit_distance: 1)
+    SpellKit.load!(dictionary_path: test_unigrams, edit_distance: 1)
   end
 
   describe "latency targets" do
@@ -50,7 +50,7 @@ RSpec.describe "Performance (M5)" do
   describe "guard performance" do
     before do
       SpellKit.load!(
-        unigrams_path: test_unigrams,
+        dictionary_path: test_unigrams,
         protected_path: File.expand_path("fixtures/protected.txt", __dir__)
       )
     end

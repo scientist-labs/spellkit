@@ -13,12 +13,12 @@ module SpellKit
   class InvalidArgumentError < Error; end
 
   class << self
-    def load!(unigrams_path:, protected_path: nil, protected_patterns: [],
+    def load!(dictionary_path:, protected_path: nil, protected_patterns: [],
               manifest_path: nil, edit_distance: 1,
               frequency_threshold: 10.0, **_options)
 
       # Validate required path
-      raise FileNotFoundError, "Unigrams file not found: #{unigrams_path}" unless File.exist?(unigrams_path.to_s)
+      raise FileNotFoundError, "Dictionary file not found: #{dictionary_path}" unless File.exist?(dictionary_path.to_s)
 
       # Validate edit distance
       unless [1, 2].include?(edit_distance)
@@ -31,7 +31,7 @@ module SpellKit
       end
 
       config = {
-        "unigrams_path" => unigrams_path.to_s,
+        "dictionary_path" => dictionary_path.to_s,
         "edit_distance" => edit_distance,
         "frequency_threshold" => frequency_threshold
       }

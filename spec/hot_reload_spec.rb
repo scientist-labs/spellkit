@@ -10,7 +10,7 @@ RSpec.describe "Hot Reload & Manifests (M3)" do
   describe "hot reload" do
     it "can reload dictionary without restart" do
       # Initial load
-      SpellKit.load!(unigrams_path: test_unigrams)
+      SpellKit.load!(dictionary_path: test_unigrams)
 
       # Verify initial state
       suggestions = SpellKit.suggest("helo", 1)
@@ -20,7 +20,7 @@ RSpec.describe "Hot Reload & Manifests (M3)" do
       File.write(temp_unigrams, "help\t50000\nworld\t30000")
 
       # Reload with new dictionary
-      SpellKit.load!(unigrams_path: temp_unigrams)
+      SpellKit.load!(dictionary_path: temp_unigrams)
 
       # Verify new state - "help" should now be the only suggestion
       suggestions = SpellKit.suggest("helo", 1)
@@ -31,7 +31,7 @@ RSpec.describe "Hot Reload & Manifests (M3)" do
 
   describe "stats API" do
     before do
-      SpellKit.load!(unigrams_path: test_unigrams)
+      SpellKit.load!(dictionary_path: test_unigrams)
     end
 
     it "provides statistics" do
@@ -45,7 +45,7 @@ RSpec.describe "Hot Reload & Manifests (M3)" do
 
   describe "healthcheck API" do
     it "succeeds when properly loaded" do
-      SpellKit.load!(unigrams_path: test_unigrams)
+      SpellKit.load!(dictionary_path: test_unigrams)
       expect { SpellKit.healthcheck }.not_to raise_error
     end
   end

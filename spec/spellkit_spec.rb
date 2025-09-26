@@ -8,20 +8,20 @@ RSpec.describe SpellKit do
   describe ".load!" do
     it "loads the dictionary" do
       expect {
-        SpellKit.load!(unigrams_path: test_unigrams)
+        SpellKit.load!(dictionary_path: test_unigrams)
       }.not_to raise_error
     end
 
     it "accepts edit distance parameter" do
       expect {
-        SpellKit.load!(unigrams_path: test_unigrams, edit_distance: 2)
+        SpellKit.load!(dictionary_path: test_unigrams, edit_distance: 2)
       }.not_to raise_error
     end
   end
 
   describe ".suggest" do
     before do
-      SpellKit.load!(unigrams_path: test_unigrams)
+      SpellKit.load!(dictionary_path: test_unigrams)
     end
 
     it "returns suggestions for misspelled words" do
@@ -41,7 +41,7 @@ RSpec.describe SpellKit do
     end
 
     it "returns empty array for words too far from dictionary" do
-      SpellKit.load!(unigrams_path: test_unigrams, edit_distance: 1)
+      SpellKit.load!(dictionary_path: test_unigrams, edit_distance: 1)
       suggestions = SpellKit.suggest("zzzzzz", 5)
       expect(suggestions).to eq([])
     end
@@ -49,7 +49,7 @@ RSpec.describe SpellKit do
 
   describe ".correct_if_unknown" do
     before do
-      SpellKit.load!(unigrams_path: test_unigrams)
+      SpellKit.load!(dictionary_path: test_unigrams)
     end
 
     it "corrects misspelled words" do

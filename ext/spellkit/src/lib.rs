@@ -40,14 +40,14 @@ thread_local! {
 }
 
 fn load_full(ruby: &Ruby, config: RHash) -> Result<(), Error> {
-    // Required: unigrams path
-    let unigrams_path: String = TryConvert::try_convert(
-        config.fetch::<_, Value>("unigrams_path")
-            .map_err(|_| Error::new(ruby.exception_arg_error(), "unigrams_path is required"))?
+    // Required: dictionary path
+    let dictionary_path: String = TryConvert::try_convert(
+        config.fetch::<_, Value>("dictionary_path")
+            .map_err(|_| Error::new(ruby.exception_arg_error(), "dictionary_path is required"))?
     )?;
 
-    let content = std::fs::read_to_string(&unigrams_path)
-        .map_err(|e| Error::new(ruby.exception_runtime_error(), format!("Failed to read unigrams file: {}", e)))?;
+    let content = std::fs::read_to_string(&dictionary_path)
+        .map_err(|e| Error::new(ruby.exception_runtime_error(), format!("Failed to read dictionary file: {}", e)))?;
 
     // Optional: edit distance
     let edit_dist: usize = config.get("edit_distance")

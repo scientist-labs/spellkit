@@ -4,7 +4,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
 
   before do
     SpellKit.load!(
-      unigrams_path: test_unigrams,
+      dictionary_path: test_unigrams,
       protected_path: protected_file,
       edit_distance: 1
     )
@@ -53,7 +53,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
     it "protects terms matching regex patterns" do
       # Load with regex patterns
       SpellKit.load!(
-        unigrams_path: test_unigrams,
+        dictionary_path: test_unigrams,
         protected_patterns: [/^[A-Z]{3,4}\d+$/, /^\d{2,7}-\d{2}-\d$/]
       )
 
@@ -71,7 +71,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
     it "accepts both Regexp and String patterns" do
       # Load with mixed pattern types
       SpellKit.load!(
-        unigrams_path: test_unigrams,
+        dictionary_path: test_unigrams,
         protected_patterns: [/^CDK\d+$/, "^IL-?\\d+$"]
       )
 
