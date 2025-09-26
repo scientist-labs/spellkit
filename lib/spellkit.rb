@@ -20,13 +20,12 @@ module SpellKit
   DEFAULT_DICTIONARY_URL = "https://raw.githubusercontent.com/wolfgarbe/SymSpell/master/SymSpell.FrequencyDictionary/en-80k.txt"
 
   class Configuration
-    attr_accessor :dictionary, :protected_path, :protected_patterns, :manifest_path, :edit_distance, :frequency_threshold
+    attr_accessor :dictionary, :protected_path, :protected_patterns, :edit_distance, :frequency_threshold
 
     def initialize
       @dictionary = DEFAULT_DICTIONARY_URL
       @protected_path = nil
       @protected_patterns = []
-      @manifest_path = nil
       @edit_distance = 1
       @frequency_threshold = 10.0
     end
@@ -36,7 +35,6 @@ module SpellKit
         dictionary: @dictionary,
         protected_path: @protected_path,
         protected_patterns: @protected_patterns,
-        manifest_path: @manifest_path,
         edit_distance: @edit_distance,
         frequency_threshold: @frequency_threshold
       }
@@ -102,8 +100,7 @@ class SpellKit::Checker
   alias_method :_rust_healthcheck, :healthcheck
 
   def load!(dictionary: nil, protected_path: nil, protected_patterns: [],
-            manifest_path: nil, edit_distance: 1,
-            frequency_threshold: 10.0, **_options)
+            edit_distance: 1, frequency_threshold: 10.0, **_options)
 
     # Validate dictionary parameter
     raise SpellKit::InvalidArgumentError, "dictionary parameter is required" if dictionary.nil?
@@ -135,7 +132,6 @@ class SpellKit::Checker
     }
 
     config["protected_path"] = protected_path.to_s if protected_path
-    config["manifest_path"] = manifest_path.to_s if manifest_path
 
     # Convert Ruby Regex objects to strings for Rust
     if protected_patterns.any?

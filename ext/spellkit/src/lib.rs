@@ -22,7 +22,6 @@ struct CheckerState {
     loaded_at: Option<u64>,
     dictionary_size: usize,
     edit_distance: usize,
-    manifest_version: Option<String>,
 }
 
 impl CheckerState {
@@ -35,7 +34,6 @@ impl CheckerState {
             loaded_at: None,
             dictionary_size: 0,
             edit_distance: 1,
-            manifest_version: None,
         }
     }
 }
@@ -107,24 +105,6 @@ impl Checker {
         .and_then(|v: Value| TryConvert::try_convert(v).ok())
         .unwrap_or(10.0);
 
-    // Load manifest if provided
-    let manifest_version = if let Some(manifest_path) = config.get("manifest_path") {
-        let path: String = TryConvert::try_convert(manifest_path)?;
-        if let Ok(content) = std::fs::read_to_string(path) {
-            if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&content) {
-                manifest.get("version")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
         let loaded_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .ok()
@@ -138,7 +118,6 @@ impl Checker {
         state.loaded_at = loaded_at;
         state.dictionary_size = dictionary_size;
         state.edit_distance = edit_dist;
-        state.manifest_version = manifest_version;
 
         Ok(())
     }
@@ -238,10 +217,6 @@ impl Checker {
 
         if let Some(loaded_at) = state.loaded_at {
             stats.aset("loaded_at", loaded_at)?;
-        }
-
-        if let Some(ref version) = state.manifest_version {
-            stats.aset("version", version.as_str())?;
         }
 
         Ok(stats)

@@ -164,7 +164,6 @@ SpellKit.configure do |config|
   config.dictionary = "models/dictionary.tsv"
   config.protected_path = "models/protected.txt"
   config.protected_patterns = [/^[A-Z]{3,4}\d+$/]
-  config.manifest_path = "models/symspell.json"
   config.edit_distance = 1
   config.frequency_threshold = 10.0
 end
@@ -238,7 +237,6 @@ SpellKit.load!(
   dictionary: "models/dictionary.tsv",               # required: path or URL
   protected_path: "models/protected.txt",            # optional
   protected_patterns: [/^[A-Z]{3,4}\d+$/],           # optional
-  manifest_path: "models/symspell.json",             # optional
   edit_distance: 1,                                  # 1 (default) or 2
   frequency_threshold: 10.0                          # default: 10.0
 )
@@ -254,7 +252,6 @@ Load or reload dictionaries. Thread-safe atomic swap. Accepts URLs (auto-downloa
 - `dictionary:` (required) - URL or path to TSV file with term<TAB>frequency
 - `protected_path:` (optional) - Path to file with protected terms (one per line)
 - `protected_patterns:` (optional) - Array of Regexp or String patterns to protect
-- `manifest_path:` (optional) - Path to JSON manifest with version info
 - `edit_distance:` (default: 1) - Maximum edit distance (1 or 2)
 - `frequency_threshold:` (default: 10.0) - Minimum frequency ratio for corrections
 
@@ -302,7 +299,6 @@ Get current state statistics.
 - `"dictionary_size"` - Number of terms
 - `"edit_distance"` - Configured edit distance
 - `"loaded_at"` - Unix timestamp
-- `"version"` - Manifest version (if provided)
 
 ### `SpellKit.healthcheck`
 
