@@ -28,8 +28,10 @@ RSpec.describe SpellKit do
       suggestions = SpellKit.suggest("helo", 3)
       expect(suggestions).to be_an(Array)
       expect(suggestions.first).to include("term", "distance", "freq")
-      expect(suggestions.first["term"]).to eq("help")
+      # "hello" comes first because it has higher frequency than "help"
+      expect(suggestions.first["term"]).to eq("hello")
       expect(suggestions.first["distance"]).to eq(1)
+      expect(suggestions.first["freq"]).to eq(10000)
     end
 
     it "returns exact match with distance 0" do

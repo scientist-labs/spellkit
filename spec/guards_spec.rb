@@ -39,8 +39,8 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       tokens = %w[rat lyssis buffers for CDK10]
       corrected = SpellKit.correct_tokens(tokens, guard: :domain)
 
-      expect(corrected).to eq(%w[rat lyssis buffers for CDK10])
-      # Note: "lyssis" and "buffers" stay as-is because they're not close enough to dictionary words
+      expect(corrected).to eq(%w[rat lysis buffer for CDK10])
+      # "lyssis" → "lysis" (ED=1), "buffers" → "buffer" (ED=1), "CDK10" protected
     end
   end
 

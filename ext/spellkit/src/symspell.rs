@@ -143,6 +143,18 @@ impl SymSpell {
         let input_deletes = self.get_deletes(&normalized, self.max_edit_distance);
 
         for delete in &input_deletes {
+            // Check if this delete is itself a dictionary word (important for finding words shorter than input)
+            if !seen.contains(delete) {
+                if let Some(&freq) = self.words.get(delete) {
+                    let distance = self.edit_distance(&normalized, delete);
+                    if distance <= self.max_edit_distance {
+                        suggestions.push(Suggestion::new(delete.clone(), distance, freq));
+                        seen.insert(delete.clone());
+                    }
+                }
+            }
+
+            // Check the deletes map for candidates
             if let Some(candidates) = self.deletes.get(delete) {
                 for candidate in candidates {
                     if seen.contains(candidate) {
