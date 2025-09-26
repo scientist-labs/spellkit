@@ -1,4 +1,4 @@
-# SpellKit
+<img src="/docs/assets/spellkit-wide.png" alt="spellkit" height="160px">
 
 Fast, safe typo correction for search-term extraction, wrapping the SymSpell algorithm in Rust via Magnus.
 
