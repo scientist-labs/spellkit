@@ -1,0 +1,20 @@
+[package]
+name = "spellkit"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+description = "Fast, safe typo correction for search-term extraction"
+
+[lib]
+name = "spellkit"
+crate-type = ["cdylib"]
+
+[dependencies]
+magnus = { version = "0.7", features = ["rb-sys"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hashbrown = "0.15"
+unicode-normalization = "0.1"
+
+[dev-dependencies]

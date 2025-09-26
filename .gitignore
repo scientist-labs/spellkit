@@ -6,6 +6,22 @@
 /pkg/
 /spec/reports/
 /tmp/
+Gemfile.lock
 
 # rspec failure tracking
 .rspec_status
+
+# Rust/Cargo
+/target/
+/ext/spellkit/target/
+Cargo.lock
+ext/spellkit/Cargo.lock
+
+# Compiled extension
+*.bundle
+*.so
+*.o
+*.a
+mkmf.log
+lib/spellkit/*.bundle
+lib/spellkit/*.so
