@@ -45,9 +45,12 @@ end
 # Wrap Rust methods with Ruby-friendly API after extension loads
 module SpellKit
   class << self
-    # Save original Rust methods
-    alias_method :_rust_correct_if_unknown, :correct_if_unknown
-    alias_method :_rust_correct_tokens, :correct_tokens
+    def suggest(word, max = 5)
+      raise InvalidArgumentError, "word cannot be nil" if word.nil?
+      raise InvalidArgumentError, "word cannot be empty" if word.to_s.empty?
+
+      _rust_suggest(word, max)
+    end
 
     def correct_if_unknown(word, guard: nil)
       raise InvalidArgumentError, "word cannot be nil" if word.nil?
@@ -62,6 +65,14 @@ module SpellKit
 
       use_guard = guard == :domain
       _rust_correct_tokens(tokens, use_guard)
+    end
+
+    def stats
+      _rust_stats
+    end
+
+    def healthcheck
+      _rust_healthcheck
     end
   end
 end

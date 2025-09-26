@@ -282,11 +282,11 @@ fn init(_ruby: &Ruby) -> Result<(), Error> {
     let module = define_module("SpellKit")?;
 
     module.define_singleton_method("load_full", function!(load_full, 1))?;
-    module.define_singleton_method("suggest", function!(suggest, 2))?;
-    module.define_singleton_method("correct_if_unknown", function!(correct_if_unknown, 2))?;
-    module.define_singleton_method("correct_tokens", function!(correct_tokens, 2))?;
-    module.define_singleton_method("stats", function!(stats, 0))?;
-    module.define_singleton_method("healthcheck", function!(healthcheck, 0))?;
+    module.define_singleton_method("_rust_suggest", function!(suggest, 2))?;
+    module.define_singleton_method("_rust_correct_if_unknown", function!(correct_if_unknown, 2))?;
+    module.define_singleton_method("_rust_correct_tokens", function!(correct_tokens, 2))?;
+    module.define_singleton_method("_rust_stats", function!(stats, 0))?;
+    module.define_singleton_method("_rust_healthcheck", function!(healthcheck, 0))?;
 
     Ok(())
 }
