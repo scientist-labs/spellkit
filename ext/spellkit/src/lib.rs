@@ -70,7 +70,7 @@ impl Checker {
 
     let mut words = Vec::new();
     for line in content.lines() {
-        let parts: Vec<&str> = line.split('\t').collect();
+        let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() == 2 {
             if let Ok(freq) = parts[1].parse::<u64>() {
                 words.push((parts[0].to_string(), freq));

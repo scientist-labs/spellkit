@@ -53,7 +53,7 @@ puts corrected
 # => "hello"
 
 # Batch correction
-tokens = %w[helo wrld ruby tset]
+tokens = %w[helllo wrld ruby teset]
 corrected_tokens = SpellKit.correct_tokens(tokens)
 puts corrected_tokens.inspect
 # => ["hello", "world", "ruby", "test"]
@@ -177,12 +177,19 @@ SpellKit.suggest("word", 5)  # Uses configured dictionary
 
 ### Dictionary (required)
 
-Tab-separated file with term and frequency:
+Whitespace-separated file with term and frequency (supports both space and tab delimiters):
 
 ```
 hello	10000
 world	8000
 lysis	2000
+```
+
+Or space-separated:
+```
+hello 10000
+world 8000
+lysis 2000
 ```
 
 ### Protected Terms (optional)
