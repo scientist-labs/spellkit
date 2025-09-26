@@ -1,20 +1,26 @@
 mod symspell;
+mod guards;
 
-use magnus::{define_module, function, prelude::*, Error, RArray, RHash, Ruby};
+use magnus::{define_module, function, prelude::*, Error, RArray, RHash, Ruby, Value, TryConvert};
 use std::cell::RefCell;
 use std::sync::{Arc, RwLock};
 use symspell::SymSpell;
+use guards::Guards;
 
 struct SpellKitState {
     symspell: Option<SymSpell>,
+    guards: Guards,
     loaded: bool,
+    frequency_threshold: f64,
 }
 
 impl SpellKitState {
     fn new() -> Self {
         Self {
             symspell: None,
+            guards: Guards::new(),
             loaded: false,
+            frequency_threshold: 10.0, // Default: candidate must have 10x frequency to override
         }
     }
 }
@@ -23,11 +29,21 @@ thread_local! {
     static STATE: RefCell<Arc<RwLock<SpellKitState>>> = RefCell::new(Arc::new(RwLock::new(SpellKitState::new())));
 }
 
-fn load_dictionary(ruby: &Ruby, unigrams_path: String, edit_distance: Option<usize>) -> Result<(), Error> {
+fn load_full(ruby: &Ruby, config: RHash) -> Result<(), Error> {
+    // Required: unigrams path
+    let unigrams_path: String = TryConvert::try_convert(
+        config.fetch::<_, Value>("unigrams_path")
+            .map_err(|_| Error::new(ruby.exception_arg_error(), "unigrams_path is required"))?
+    )?;
+
     let content = std::fs::read_to_string(&unigrams_path)
         .map_err(|e| Error::new(ruby.exception_runtime_error(), format!("Failed to read unigrams file: {}", e)))?;
 
-    let edit_dist = edit_distance.unwrap_or(1);
+    // Optional: edit distance
+    let edit_dist: usize = config.get("edit_distance")
+        .and_then(|v: Value| TryConvert::try_convert(v).ok())
+        .unwrap_or(1);
+
     if edit_dist > 2 {
         return Err(Error::new(ruby.exception_arg_error(), "edit_distance must be 1 or 2"));
     }
@@ -45,10 +61,48 @@ fn load_dictionary(ruby: &Ruby, unigrams_path: String, edit_distance: Option<usi
     let mut symspell = SymSpell::new(edit_dist);
     symspell.load_dictionary(words);
 
+    let mut guards = Guards::new();
+
+    // Load optional guard files
+    if let Some(symbols_path) = config.get("symbols_path") {
+        let path: String = TryConvert::try_convert(symbols_path)?;
+        if let Ok(content) = std::fs::read_to_string(path) {
+            guards.load_symbols(&content);
+        }
+    }
+
+    if let Some(cas_path) = config.get("cas_path") {
+        let path: String = TryConvert::try_convert(cas_path)?;
+        if let Ok(content) = std::fs::read_to_string(path) {
+            guards.load_cas(&content);
+        }
+    }
+
+    if let Some(skus_path) = config.get("skus_path") {
+        let path: String = TryConvert::try_convert(skus_path)?;
+        if let Ok(content) = std::fs::read_to_string(path) {
+            guards.load_skus(&content);
+        }
+    }
+
+    if let Some(species_path) = config.get("species_path") {
+        let path: String = TryConvert::try_convert(species_path)?;
+        if let Ok(content) = std::fs::read_to_string(path) {
+            guards.load_species(&content);
+        }
+    }
+
+    // Optional frequency threshold
+    let frequency_threshold: f64 = config.get("frequency_threshold")
+        .and_then(|v: Value| TryConvert::try_convert(v).ok())
+        .unwrap_or(10.0);
+
     STATE.with(|state| {
         let state_ref = state.borrow();
         let mut state = state_ref.write().unwrap();
         state.symspell = Some(symspell);
+        state.guards = guards;
+        state.frequency_threshold = frequency_threshold;
         state.loaded = true;
     });
 
@@ -85,7 +139,7 @@ fn suggest(ruby: &Ruby, word: String, max: Option<usize>) -> Result<RArray, Erro
     })
 }
 
-fn correct_if_unknown(ruby: &Ruby, word: String) -> Result<String, Error> {
+fn correct_if_unknown(ruby: &Ruby, word: String, use_guard: Option<bool>) -> Result<String, Error> {
     STATE.with(|state| {
         let state_ref = state.borrow();
         let state = state_ref.read().unwrap();
@@ -94,29 +148,60 @@ fn correct_if_unknown(ruby: &Ruby, word: String) -> Result<String, Error> {
             return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded. Call SpellKit.load! first"));
         }
 
-        if let Some(ref symspell) = state.symspell {
-            let suggestions = symspell.suggest(&word, 1);
-
-            if !suggestions.is_empty() && suggestions[0].distance == 0 {
-                Ok(word)
-            } else if !suggestions.is_empty() && suggestions[0].distance <= 1 {
-                Ok(suggestions[0].term.clone())
-            } else {
-                Ok(word)
+        // Check if word is protected
+        if use_guard.unwrap_or(false) {
+            let normalized = SymSpell::normalize_word(&word);
+            if state.guards.is_protected_normalized(&word, &normalized) {
+                return Ok(word);
             }
+        }
+
+        if let Some(ref symspell) = state.symspell {
+            let suggestions = symspell.suggest(&word, 5);
+
+            // If exact match exists, return original
+            if !suggestions.is_empty() && suggestions[0].distance == 0 {
+                return Ok(word);
+            }
+
+            // Find best correction with frequency gating
+            for suggestion in &suggestions {
+                if suggestion.distance <= 1 {
+                    // Check frequency threshold - correction should be significantly more common
+                    // Since we don't have the original word's frequency, we'll just take any ED=1 match
+                    // In a full implementation, we'd check if suggestion.frequency >= threshold * original_freq
+                    return Ok(suggestion.term.clone());
+                }
+            }
+
+            Ok(word)
         } else {
             Err(Error::new(ruby.exception_runtime_error(), "SymSpell not initialized"))
         }
     })
 }
 
+fn correct_tokens(ruby: &Ruby, tokens: RArray, use_guard: Option<bool>) -> Result<RArray, Error> {
+    let result = RArray::new();
+    let guard = use_guard.unwrap_or(false);
+
+    for token in tokens.each() {
+        let word: String = TryConvert::try_convert(token?)?;
+        let corrected = correct_if_unknown(ruby, word, Some(guard))?;
+        result.push(corrected)?;
+    }
+
+    Ok(result)
+}
+
 #[magnus::init]
 fn init(_ruby: &Ruby) -> Result<(), Error> {
     let module = define_module("SpellKit")?;
 
-    module.define_singleton_method("load_dictionary", function!(load_dictionary, 2))?;
+    module.define_singleton_method("load_full", function!(load_full, 1))?;
     module.define_singleton_method("suggest", function!(suggest, 2))?;
-    module.define_singleton_method("correct_if_unknown", function!(correct_if_unknown, 1))?;
+    module.define_singleton_method("correct_if_unknown", function!(correct_if_unknown, 2))?;
+    module.define_singleton_method("correct_tokens", function!(correct_tokens, 2))?;
 
     Ok(())
 }
