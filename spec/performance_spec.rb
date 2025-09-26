@@ -73,10 +73,4 @@ RSpec.describe "Performance (M5)" do
       expect(p95).to be < 500
     end
   end
-
-  describe "memory usage" do
-    it "loads dictionary efficiently" do
-      skip "Manual test - check memory with larger dictionaries"
-    end
-  end
 end

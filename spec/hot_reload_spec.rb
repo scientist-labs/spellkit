@@ -27,10 +27,6 @@ RSpec.describe "Hot Reload & Manifests (M3)" do
       expect(suggestions.first["term"]).to eq("help")
       expect(suggestions.first["freq"]).to eq(50000)
     end
-
-    it "is thread-safe during reload" do
-      skip "Thread safety test - implement if needed"
-    end
   end
 
   describe "stats API" do
