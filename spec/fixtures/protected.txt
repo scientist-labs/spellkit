@@ -1,0 +1,21 @@
+# Protected terms - exact matches
+CDK10
+BRCA1
+BRCA2
+IL6
+IL-6
+TP53
+EGFR
+HER2
+VEGF
+TNF
+rat
+mouse
+human
+rabbit
+dog
+cat
+pig
+monkey
+zebrafish
+chicken
