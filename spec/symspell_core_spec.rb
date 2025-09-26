@@ -2,7 +2,7 @@ RSpec.describe "SymSpell Core (M1)" do
   let(:test_unigrams) { File.expand_path("fixtures/test_unigrams.tsv", __dir__) }
 
   before do
-    SpellKit.load!(dictionary_path: test_unigrams, edit_distance: 1)
+    SpellKit.load!(dictionary: test_unigrams, edit_distance: 1)
   end
 
   describe "basic functionality" do

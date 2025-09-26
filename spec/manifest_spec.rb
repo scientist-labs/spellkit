@@ -4,7 +4,7 @@ RSpec.describe "Manifest support" do
 
   it "loads manifest version" do
     SpellKit.load!(
-      dictionary_path: test_unigrams,
+      dictionary: test_unigrams,
       manifest_path: manifest_file
     )
 
@@ -13,7 +13,7 @@ RSpec.describe "Manifest support" do
   end
 
   it "works without manifest" do
-    SpellKit.load!(dictionary_path: test_unigrams)
+    SpellKit.load!(dictionary: test_unigrams)
 
     stats = SpellKit.stats
     expect(stats["version"]).to be_nil

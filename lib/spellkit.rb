@@ -1,4 +1,7 @@
 require_relative "spellkit/version"
+require "uri"
+require "net/http"
+require "fileutils"
 
 begin
   require "spellkit/spellkit"
@@ -11,14 +14,28 @@ module SpellKit
   class NotLoadedError < Error; end
   class FileNotFoundError < Error; end
   class InvalidArgumentError < Error; end
+  class DownloadError < Error; end
+
+  # Default dictionary: SymSpell English 80k frequency dictionary
+  DEFAULT_DICTIONARY_URL = "https://raw.githubusercontent.com/wolfgarbe/SymSpell/master/SymSpell.FrequencyDictionary/en-80k.txt"
 
   class << self
-    def load!(dictionary_path:, protected_path: nil, protected_patterns: [],
+    def load!(dictionary: nil, protected_path: nil, protected_patterns: [],
               manifest_path: nil, edit_distance: 1,
               frequency_threshold: 10.0, **_options)
 
-      # Validate required path
-      raise FileNotFoundError, "Dictionary file not found: #{dictionary_path}" unless File.exist?(dictionary_path.to_s)
+      # Validate dictionary parameter
+      raise InvalidArgumentError, "dictionary parameter is required" if dictionary.nil?
+
+      # Auto-detect URL vs path
+      dictionary_path = if dictionary.to_s.start_with?("http://", "https://")
+        download_dictionary(dictionary)
+      else
+        dictionary.to_s
+      end
+
+      # Validate file exists
+      raise FileNotFoundError, "Dictionary file not found: #{dictionary_path}" unless File.exist?(dictionary_path)
 
       # Validate edit distance
       unless [1, 2].include?(edit_distance)
@@ -54,6 +71,39 @@ module SpellKit
       end
 
       load_full(config)
+    end
+
+    private
+
+    def download_dictionary(url)
+      require "digest"
+
+      # Create cache directory
+      cache_dir = File.join(Dir.home, ".cache", "spellkit")
+      FileUtils.mkdir_p(cache_dir)
+
+      # Generate cache filename from URL hash
+      url_hash = Digest::SHA256.hexdigest(url)[0..15]
+      cache_file = File.join(cache_dir, "dict_#{url_hash}.tsv")
+
+      # Return cached file if it exists
+      return cache_file if File.exist?(cache_file)
+
+      # Download dictionary
+      uri = URI.parse(url)
+      response = Net::HTTP.get_response(uri)
+
+      unless response.is_a?(Net::HTTPSuccess)
+        raise DownloadError, "Failed to download dictionary from #{url}: #{response.code} #{response.message}"
+      end
+
+      # Write to cache
+      File.write(cache_file, response.body)
+      cache_file
+    rescue URI::InvalidURIError => e
+      raise InvalidArgumentError, "Invalid URL: #{url} (#{e.message})"
+    rescue StandardError => e
+      raise DownloadError, "Failed to download dictionary: #{e.message}"
     end
   end
 end

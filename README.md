@@ -25,24 +25,21 @@ gem install spellkit
 
 ## Quick Start
 
-Copy and paste this to try SpellKit immediately after installation:
+SpellKit works with dictionaries from URLs or local files. Try it immediately:
 
 ```ruby
 require "spellkit"
-require "tempfile"
 
-# Create a simple dictionary
-dict = Tempfile.new(["unigrams", ".tsv"])
-dict.write("hello\t10000\nworld\t5000\nruby\t3000\ntest\t2000\n")
-dict.close
+# Load from URL (downloads and caches automatically)
+SpellKit.load!(dictionary: SpellKit::DEFAULT_DICTIONARY_URL)
 
-# Load the dictionary
-SpellKit.load!(dictionary_path: dict.path, edit_distance: 1)
+# Or load from local file
+# SpellKit.load!(dictionary: "path/to/dictionary.tsv")
 
 # Get suggestions for a misspelled word
 suggestions = SpellKit.suggest("helo", 5)
 puts suggestions.inspect
-# => [{"term"=>"hello", "distance"=>1, "freq"=>10000}]
+# => [{"term"=>"hello", "distance"=>1, "freq"=>...}]
 
 # Correct a typo
 corrected = SpellKit.correct_if_unknown("helo")
@@ -57,9 +54,7 @@ puts corrected_tokens.inspect
 
 # Check stats
 puts SpellKit.stats.inspect
-# => {"loaded"=>true, "dictionary_size"=>4, "edit_distance"=>1, "loaded_at"=>...}
-
-dict.unlink
+# => {"loaded"=>true, "dictionary_size"=>..., "edit_distance"=>1, "loaded_at"=>...}
 ```
 
 ## Usage
@@ -69,11 +64,11 @@ dict.unlink
 ```ruby
 require "spellkit"
 
-# Load your dictionary
-SpellKit.load!(
-  dictionary_path: "models/unigrams.tsv",
-  edit_distance: 1
-)
+# Load from URL (auto-downloads and caches)
+SpellKit.load!(dictionary: "https://example.com/dict.tsv")
+
+# Or from local file
+SpellKit.load!(dictionary: "models/dictionary.tsv", edit_distance: 1)
 
 # Get suggestions
 SpellKit.suggest("lyssis", 5)
@@ -96,13 +91,13 @@ Protect specific terms from correction using exact matches or regex patterns:
 ```ruby
 # Load with exact-match protected terms
 SpellKit.load!(
-  dictionary_path: "models/unigrams.tsv",
+  dictionary: "models/dictionary.tsv",
   protected_path: "models/protected.txt"   # file with terms to protect
 )
 
 # Protect terms matching regex patterns
 SpellKit.load!(
-  dictionary_path: "models/unigrams.tsv",
+  dictionary: "models/dictionary.tsv",
   protected_patterns: [
     /^[A-Z]{3,4}\d+$/,        # gene symbols like CDK10, BRCA1
     /^\d{2,7}-\d{2}-\d$/,     # CAS numbers like 7732-18-5
@@ -112,7 +107,7 @@ SpellKit.load!(
 
 # Or combine both
 SpellKit.load!(
-  dictionary_path: "models/unigrams.tsv",
+  dictionary: "models/dictionary.tsv",
   protected_path: "models/protected.txt",
   protected_patterns: [/^[A-Z]{3,4}\d+$/]
 )
@@ -158,11 +153,31 @@ MyBrand
 SpecialTerm
 ```
 
+## Dictionary Sources
+
+SpellKit doesn't bundle dictionaries, but works with several sources:
+
+### Use the Default Dictionary (Recommended)
+```ruby
+# English 80k word dictionary from SymSpell
+SpellKit.load!(dictionary: SpellKit::DEFAULT_DICTIONARY_URL)
+```
+
+### Public Dictionary URLs
+- **SymSpell English 80k**: `https://raw.githubusercontent.com/wolfgarbe/SymSpell/master/SymSpell.FrequencyDictionary/en-80k.txt`
+- **SymSpell English 500k**: `https://raw.githubusercontent.com/wolfgarbe/SymSpell/master/SymSpell.FrequencyDictionary/en-500k.txt`
+
+### Build Your Own
+See "Building Dictionaries" section below for creating domain-specific dictionaries.
+
+### Caching
+Dictionaries downloaded from URLs are cached in `~/.cache/spellkit/` for faster subsequent loads.
+
 ## Configuration
 
 ```ruby
 SpellKit.load!(
-  dictionary_path: "models/unigrams.tsv",              # required
+  dictionary: "models/dictionary.tsv",               # required: path or URL
   protected_path: "models/protected.txt",            # optional
   protected_patterns: [/^[A-Z]{3,4}\d+$/],           # optional
   manifest_path: "models/symspell.json",             # optional
@@ -175,15 +190,27 @@ SpellKit.load!(
 
 ### `SpellKit.load!(**options)`
 
-Load or reload dictionaries. Thread-safe atomic swap.
+Load or reload dictionaries. Thread-safe atomic swap. Accepts URLs (auto-downloads and caches) or local file paths.
 
 **Options:**
-- `dictionary_path:` (required) - Path to TSV file with term<TAB>frequency
+- `dictionary:` (required) - URL or path to TSV file with term<TAB>frequency
 - `protected_path:` (optional) - Path to file with protected terms (one per line)
 - `protected_patterns:` (optional) - Array of Regexp or String patterns to protect
 - `manifest_path:` (optional) - Path to JSON manifest with version info
 - `edit_distance:` (default: 1) - Maximum edit distance (1 or 2)
 - `frequency_threshold:` (default: 10.0) - Minimum frequency ratio for corrections
+
+**Examples:**
+```ruby
+# From URL (recommended for getting started)
+SpellKit.load!(dictionary: SpellKit::DEFAULT_DICTIONARY_URL)
+
+# From custom URL
+SpellKit.load!(dictionary: "https://example.com/dict.tsv")
+
+# From local file
+SpellKit.load!(dictionary: "/path/to/dictionary.tsv")
+```
 
 ### `SpellKit.suggest(word, max = 5)`
 
@@ -249,8 +276,13 @@ protected_patterns: [
 
 ```ruby
 # config/initializers/spellkit.rb
+
+# Option 1: Use default dictionary (easiest)
+SpellKit.load!(dictionary: SpellKit::DEFAULT_DICTIONARY_URL)
+
+# Option 2: Use local dictionary
 SpellKit.load!(
-  dictionary_path: Rails.root.join("models/unigrams.tsv"),
+  dictionary: Rails.root.join("models/dictionary.tsv"),
   protected_path: Rails.root.join("models/protected.txt"),
   protected_patterns: [
     /^[A-Z]{3,4}\d+$/,     # Product codes
