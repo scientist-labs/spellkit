@@ -74,32 +74,21 @@ fn load_full(ruby: &Ruby, config: RHash) -> Result<(), Error> {
 
     let mut guards = Guards::new();
 
-    // Load optional guard files
-    if let Some(symbols_path) = config.get("symbols_path") {
-        let path: String = TryConvert::try_convert(symbols_path)?;
+    // Load optional protected terms file
+    if let Some(protected_path) = config.get("protected_path") {
+        let path: String = TryConvert::try_convert(protected_path)?;
         if let Ok(content) = std::fs::read_to_string(path) {
-            guards.load_symbols(&content);
+            guards.load_protected(&content);
         }
     }
 
-    if let Some(cas_path) = config.get("cas_path") {
-        let path: String = TryConvert::try_convert(cas_path)?;
-        if let Ok(content) = std::fs::read_to_string(path) {
-            guards.load_cas(&content);
-        }
-    }
-
-    if let Some(skus_path) = config.get("skus_path") {
-        let path: String = TryConvert::try_convert(skus_path)?;
-        if let Ok(content) = std::fs::read_to_string(path) {
-            guards.load_skus(&content);
-        }
-    }
-
-    if let Some(species_path) = config.get("species_path") {
-        let path: String = TryConvert::try_convert(species_path)?;
-        if let Ok(content) = std::fs::read_to_string(path) {
-            guards.load_species(&content);
+    // Load optional protected patterns
+    if let Some(patterns_value) = config.get("protected_patterns") {
+        let patterns: RArray = TryConvert::try_convert(patterns_value)?;
+        for pattern_value in patterns.into_iter() {
+            let pattern: String = TryConvert::try_convert(pattern_value)?;
+            guards.add_pattern(&pattern)
+                .map_err(|e| Error::new(ruby.exception_arg_error(), e))?;
         }
     }
 

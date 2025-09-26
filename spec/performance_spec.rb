@@ -51,8 +51,7 @@ RSpec.describe "Performance (M5)" do
     before do
       SpellKit.load!(
         unigrams_path: test_unigrams,
-        symbols_path: File.expand_path("fixtures/symbols.txt", __dir__),
-        species_path: File.expand_path("fixtures/species.txt", __dir__)
+        protected_path: File.expand_path("fixtures/protected.txt", __dir__)
       )
     end
 

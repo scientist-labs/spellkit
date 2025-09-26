@@ -13,8 +13,8 @@ module SpellKit
   class InvalidArgumentError < Error; end
 
   class << self
-    def load!(unigrams_path:, symbols_path: nil, cas_path: nil, skus_path: nil,
-              species_path: nil, manifest_path: nil, edit_distance: 1,
+    def load!(unigrams_path:, protected_path: nil, protected_patterns: [],
+              manifest_path: nil, edit_distance: 1,
               frequency_threshold: 10.0, **_options)
 
       # Validate required path
@@ -25,17 +25,33 @@ module SpellKit
         raise InvalidArgumentError, "edit_distance must be 1 or 2, got: #{edit_distance}"
       end
 
+      # Validate protected_patterns is an array
+      unless protected_patterns.is_a?(Array)
+        raise InvalidArgumentError, "protected_patterns must be an Array"
+      end
+
       config = {
         "unigrams_path" => unigrams_path.to_s,
         "edit_distance" => edit_distance,
         "frequency_threshold" => frequency_threshold
       }
 
-      config["symbols_path"] = symbols_path.to_s if symbols_path
-      config["cas_path"] = cas_path.to_s if cas_path
-      config["skus_path"] = skus_path.to_s if skus_path
-      config["species_path"] = species_path.to_s if species_path
+      config["protected_path"] = protected_path.to_s if protected_path
       config["manifest_path"] = manifest_path.to_s if manifest_path
+
+      # Convert Ruby Regex objects to strings for Rust
+      if protected_patterns.any?
+        pattern_strings = protected_patterns.map do |pattern|
+          if pattern.is_a?(Regexp)
+            pattern.source
+          elsif pattern.is_a?(String)
+            pattern
+          else
+            raise InvalidArgumentError, "protected_patterns must contain Regexp or String objects"
+          end
+        end
+        config["protected_patterns"] = pattern_strings
+      end
 
       load_full(config)
     end
