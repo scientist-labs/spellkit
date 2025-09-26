@@ -33,6 +33,12 @@ require "spellkit"
 # Load from URL (downloads and caches automatically)
 SpellKit.load!(dictionary: SpellKit::DEFAULT_DICTIONARY_URL)
 
+# Or use a configure block (recommended for Rails)
+SpellKit.configure do |config|
+  config.dictionary = SpellKit::DEFAULT_DICTIONARY_URL
+  config.edit_distance = 1
+end
+
 # Or load from local file
 # SpellKit.load!(dictionary: "path/to/dictionary.tsv")
 
@@ -120,6 +126,51 @@ SpellKit.correct_if_unknown("CDK10", guard: :domain)
 tokens = %w[helo wrld ABC-123 for CDK10]
 SpellKit.correct_tokens(tokens, guard: :domain)
 # => ["hello", "world", "ABC-123", "for", "CDK10"]
+```
+
+### Multiple Instances
+
+SpellKit supports multiple independent checker instances, useful for different domains or languages:
+
+```ruby
+# Create separate instances for different domains
+medical_checker = SpellKit::Checker.new
+medical_checker.load!(
+  dictionary: "models/medical_dictionary.tsv",
+  protected_path: "models/medical_terms.txt"
+)
+
+legal_checker = SpellKit::Checker.new
+legal_checker.load!(
+  dictionary: "models/legal_dictionary.tsv",
+  protected_path: "models/legal_terms.txt"
+)
+
+# Use them independently
+medical_checker.suggest("lyssis", 5)
+legal_checker.suggest("contractt", 5)
+
+# Each maintains its own state
+medical_checker.stats  # Shows medical dictionary stats
+legal_checker.stats    # Shows legal dictionary stats
+```
+
+### Configuration Block
+
+Use the configure block pattern for Rails initializers:
+
+```ruby
+SpellKit.configure do |config|
+  config.dictionary = "models/dictionary.tsv"
+  config.protected_path = "models/protected.txt"
+  config.protected_patterns = [/^[A-Z]{3,4}\d+$/]
+  config.manifest_path = "models/symspell.json"
+  config.edit_distance = 1
+  config.frequency_threshold = 10.0
+end
+
+# This becomes the default instance
+SpellKit.suggest("word", 5)  # Uses configured dictionary
 ```
 
 ## Dictionary Format
@@ -278,18 +329,39 @@ protected_patterns: [
 # config/initializers/spellkit.rb
 
 # Option 1: Use default dictionary (easiest)
-SpellKit.load!(dictionary: SpellKit::DEFAULT_DICTIONARY_URL)
+SpellKit.configure do |config|
+  config.dictionary = SpellKit::DEFAULT_DICTIONARY_URL
+end
 
-# Option 2: Use local dictionary
-SpellKit.load!(
-  dictionary: Rails.root.join("models/dictionary.tsv"),
-  protected_path: Rails.root.join("models/protected.txt"),
-  protected_patterns: [
-    /^[A-Z]{3,4}\d+$/,     # Product codes
-    /^\d{2,7}-\d{2}-\d$/   # Reference numbers
-  ],
-  edit_distance: 1
-)
+# Option 2: Use local dictionary with full configuration
+SpellKit.configure do |config|
+  config.dictionary = Rails.root.join("models/dictionary.tsv")
+  config.protected_path = Rails.root.join("models/protected.txt")
+  config.protected_patterns = [
+    /^[A-Z]{3,4}\d+$/,       # Product codes
+    /^\d{2,7}-\d{2}-\d$/     # Reference numbers
+  ]
+  config.edit_distance = 1
+  config.frequency_threshold = 10.0
+end
+
+# Option 3: Multiple domain-specific instances
+# config/initializers/spellkit.rb
+module SpellCheckers
+  MEDICAL = SpellKit::Checker.new.tap do |c|
+    c.load!(
+      dictionary: Rails.root.join("models/medical_dictionary.tsv"),
+      protected_path: Rails.root.join("models/medical_terms.txt")
+    )
+  end
+
+  LEGAL = SpellKit::Checker.new.tap do |c|
+    c.load!(
+      dictionary: Rails.root.join("models/legal_dictionary.tsv"),
+      protected_path: Rails.root.join("models/legal_terms.txt")
+    )
+  end
+end
 
 # In your search preprocessing
 class SearchPreprocessor

@@ -1,15 +1,20 @@
 mod symspell;
 mod guards;
 
-use magnus::{define_module, function, prelude::*, Error, RArray, RHash, Ruby, Value, TryConvert};
-use std::cell::RefCell;
+use magnus::{class, define_module, function, method, prelude::*, Error, RArray, RHash, Ruby, Value, TryConvert};
 use std::sync::{Arc, RwLock};
 use symspell::SymSpell;
 use guards::Guards;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-struct SpellKitState {
+#[derive(Clone)]
+#[magnus::wrap(class = "SpellKit::Checker", free_immediately, size)]
+struct Checker {
+    state: Arc<RwLock<CheckerState>>,
+}
+
+struct CheckerState {
     symspell: Option<SymSpell>,
     guards: Guards,
     loaded: bool,
@@ -20,7 +25,7 @@ struct SpellKitState {
     manifest_version: Option<String>,
 }
 
-impl SpellKitState {
+impl CheckerState {
     fn new() -> Self {
         Self {
             symspell: None,
@@ -35,19 +40,24 @@ impl SpellKitState {
     }
 }
 
-thread_local! {
-    static STATE: RefCell<Arc<RwLock<SpellKitState>>> = RefCell::new(Arc::new(RwLock::new(SpellKitState::new())));
-}
+impl Checker {
+    fn new() -> Self {
+        Self {
+            state: Arc::new(RwLock::new(CheckerState::new())),
+        }
+    }
 
-fn load_full(ruby: &Ruby, config: RHash) -> Result<(), Error> {
-    // Required: dictionary path
-    let dictionary_path: String = TryConvert::try_convert(
-        config.fetch::<_, Value>("dictionary_path")
-            .map_err(|_| Error::new(ruby.exception_arg_error(), "dictionary_path is required"))?
-    )?;
+    fn load_full(&self, config: RHash) -> Result<(), Error> {
+        let ruby = Ruby::get().unwrap();
 
-    let content = std::fs::read_to_string(&dictionary_path)
-        .map_err(|e| Error::new(ruby.exception_runtime_error(), format!("Failed to read dictionary file: {}", e)))?;
+        // Required: dictionary path
+        let dictionary_path: String = TryConvert::try_convert(
+            config.fetch::<_, Value>("dictionary_path")
+                .map_err(|_| Error::new(ruby.exception_arg_error(), "dictionary_path is required"))?
+        )?;
+
+        let content = std::fs::read_to_string(&dictionary_path)
+            .map_err(|e| Error::new(ruby.exception_runtime_error(), format!("Failed to read dictionary file: {}", e)))?;
 
     // Optional: edit distance
     let edit_dist: usize = config.get("edit_distance")
@@ -115,14 +125,12 @@ fn load_full(ruby: &Ruby, config: RHash) -> Result<(), Error> {
         None
     };
 
-    let loaded_at = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .ok()
-        .map(|d| d.as_secs());
+        let loaded_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .ok()
+            .map(|d| d.as_secs());
 
-    STATE.with(|state| {
-        let state_ref = state.borrow();
-        let mut state = state_ref.write().unwrap();
+        let mut state = self.state.write().unwrap();
         state.symspell = Some(symspell);
         state.guards = guards;
         state.frequency_threshold = frequency_threshold;
@@ -131,20 +139,17 @@ fn load_full(ruby: &Ruby, config: RHash) -> Result<(), Error> {
         state.dictionary_size = dictionary_size;
         state.edit_distance = edit_dist;
         state.manifest_version = manifest_version;
-    });
 
-    Ok(())
-}
+        Ok(())
+    }
 
-fn suggest(ruby: &Ruby, word: String, max: Option<usize>) -> Result<RArray, Error> {
-    let max_suggestions = max.unwrap_or(5);
-
-    STATE.with(|state| {
-        let state_ref = state.borrow();
-        let state = state_ref.read().unwrap();
+    fn suggest(&self, word: String, max: Option<usize>) -> Result<RArray, Error> {
+        let ruby = Ruby::get().unwrap();
+        let max_suggestions = max.unwrap_or(5);
+        let state = self.state.read().unwrap();
 
         if !state.loaded {
-            return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded. Call SpellKit.load! first"));
+            return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded. Call load! first"));
         }
 
         if let Some(ref symspell) = state.symspell {
@@ -163,16 +168,14 @@ fn suggest(ruby: &Ruby, word: String, max: Option<usize>) -> Result<RArray, Erro
         } else {
             Err(Error::new(ruby.exception_runtime_error(), "SymSpell not initialized"))
         }
-    })
-}
+    }
 
-fn correct_if_unknown(ruby: &Ruby, word: String, use_guard: Option<bool>) -> Result<String, Error> {
-    STATE.with(|state| {
-        let state_ref = state.borrow();
-        let state = state_ref.read().unwrap();
+    fn correct_if_unknown(&self, word: String, use_guard: Option<bool>) -> Result<String, Error> {
+        let ruby = Ruby::get().unwrap();
+        let state = self.state.read().unwrap();
 
         if !state.loaded {
-            return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded. Call SpellKit.load! first"));
+            return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded. Call load! first"));
         }
 
         // Check if word is protected
@@ -205,27 +208,23 @@ fn correct_if_unknown(ruby: &Ruby, word: String, use_guard: Option<bool>) -> Res
         } else {
             Err(Error::new(ruby.exception_runtime_error(), "SymSpell not initialized"))
         }
-    })
-}
-
-fn correct_tokens(ruby: &Ruby, tokens: RArray, use_guard: Option<bool>) -> Result<RArray, Error> {
-    let result = RArray::new();
-    let guard = use_guard.unwrap_or(false);
-
-    for token in tokens.into_iter() {
-        let word: String = TryConvert::try_convert(token)?;
-        let corrected = correct_if_unknown(ruby, word, Some(guard))?;
-        result.push(corrected)?;
     }
 
-    Ok(result)
-}
+    fn correct_tokens(&self, tokens: RArray, use_guard: Option<bool>) -> Result<RArray, Error> {
+        let result = RArray::new();
+        let guard = use_guard.unwrap_or(false);
 
-fn stats(_ruby: &Ruby) -> Result<RHash, Error> {
-    STATE.with(|state| {
-        let state_ref = state.borrow();
-        let state = state_ref.read().unwrap();
+        for token in tokens.into_iter() {
+            let word: String = TryConvert::try_convert(token)?;
+            let corrected = self.correct_if_unknown(word, Some(guard))?;
+            result.push(corrected)?;
+        }
 
+        Ok(result)
+    }
+
+    fn stats(&self) -> Result<RHash, Error> {
+        let state = self.state.read().unwrap();
         let stats = RHash::new();
 
         if !state.loaded {
@@ -246,13 +245,11 @@ fn stats(_ruby: &Ruby) -> Result<RHash, Error> {
         }
 
         Ok(stats)
-    })
-}
+    }
 
-fn healthcheck(ruby: &Ruby) -> Result<(), Error> {
-    STATE.with(|state| {
-        let state_ref = state.borrow();
-        let state = state_ref.read().unwrap();
+    fn healthcheck(&self) -> Result<(), Error> {
+        let ruby = Ruby::get().unwrap();
+        let state = self.state.read().unwrap();
 
         if !state.loaded {
             return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded"));
@@ -263,19 +260,21 @@ fn healthcheck(ruby: &Ruby) -> Result<(), Error> {
         }
 
         Ok(())
-    })
+    }
 }
 
 #[magnus::init]
 fn init(_ruby: &Ruby) -> Result<(), Error> {
     let module = define_module("SpellKit")?;
+    let checker_class = module.define_class("Checker", class::object())?;
 
-    module.define_singleton_method("load_full", function!(load_full, 1))?;
-    module.define_singleton_method("_rust_suggest", function!(suggest, 2))?;
-    module.define_singleton_method("_rust_correct_if_unknown", function!(correct_if_unknown, 2))?;
-    module.define_singleton_method("_rust_correct_tokens", function!(correct_tokens, 2))?;
-    module.define_singleton_method("_rust_stats", function!(stats, 0))?;
-    module.define_singleton_method("_rust_healthcheck", function!(healthcheck, 0))?;
+    checker_class.define_singleton_method("new", function!(Checker::new, 0))?;
+    checker_class.define_method("load!", method!(Checker::load_full, 1))?;
+    checker_class.define_method("suggest", method!(Checker::suggest, 2))?;
+    checker_class.define_method("correct_if_unknown", method!(Checker::correct_if_unknown, 2))?;
+    checker_class.define_method("correct_tokens", method!(Checker::correct_tokens, 2))?;
+    checker_class.define_method("stats", method!(Checker::stats, 0))?;
+    checker_class.define_method("healthcheck", method!(Checker::healthcheck, 0))?;
 
     Ok(())
 }
