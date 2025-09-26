@@ -223,8 +223,8 @@ fn correct_tokens(ruby: &Ruby, tokens: RArray, use_guard: Option<bool>) -> Resul
     let result = RArray::new();
     let guard = use_guard.unwrap_or(false);
 
-    for token in tokens.each() {
-        let word: String = TryConvert::try_convert(token?)?;
+    for token in tokens.into_iter() {
+        let word: String = TryConvert::try_convert(token)?;
         let corrected = correct_if_unknown(ruby, word, Some(guard))?;
         result.push(corrected)?;
     }
@@ -232,7 +232,7 @@ fn correct_tokens(ruby: &Ruby, tokens: RArray, use_guard: Option<bool>) -> Resul
     Ok(result)
 }
 
-fn stats(ruby: &Ruby) -> Result<RHash, Error> {
+fn stats(_ruby: &Ruby) -> Result<RHash, Error> {
     STATE.with(|state| {
         let state_ref = state.borrow();
         let state = state_ref.read().unwrap();
