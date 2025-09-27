@@ -127,7 +127,7 @@ impl Checker {
         let mut symspell = SymSpell::new(edit_dist);
         let mut dictionary_size = 0;
         let mut skipped_malformed = 0;
-        let skipped_multiword = 0;
+        let mut skipped_multiword = 0;
         let mut skipped_invalid_freq = 0;
 
         use std::io::BufRead;
@@ -153,6 +153,12 @@ impl Checker {
             // Skip empty terms or frequencies
             if term.is_empty() || freq_str.is_empty() {
                 skipped_malformed += 1;
+                continue;
+            }
+
+            // Check for multi-word terms (SymSpell algorithm doesn't support phrases)
+            if term.contains(char::is_whitespace) {
+                skipped_multiword += 1;
                 continue;
             }
 

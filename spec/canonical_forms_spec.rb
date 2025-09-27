@@ -4,7 +4,6 @@ RSpec.describe "Canonical Form Preservation" do
   let(:test_dict) do
     dict = Tempfile.new(["canonical", ".tsv"])
     dict.write("NASA\t10000\n")
-    dict.write("New York\t5000\n")
     dict.write("iPhone\t8000\n")
     dict.write("McDonald's\t6000\n")
     dict.write("FooBar\t3000\n")
@@ -44,13 +43,6 @@ RSpec.describe "Canonical Form Preservation" do
       expect(SpellKit.correct("MCDONALDS")).to eq("McDonald's")
     end
 
-    it "preserves whitespace (New York)" do
-      # Input "newyork" (normalized form) returns canonical "New York"
-      expect(SpellKit.correct("newyork")).to eq("New York")
-      expect(SpellKit.correct("NEWYORK")).to eq("New York")
-      expect(SpellKit.correct("NewYork")).to eq("New York")
-    end
-
     it "returns canonical form even for exact normalized matches" do
       # When user types lowercase but dictionary has mixed case
       expect(SpellKit.correct?("nasa")).to eq(true)
@@ -66,11 +58,6 @@ RSpec.describe "Canonical Form Preservation" do
     it "returns canonical forms in suggestions" do
       suggestions = SpellKit.suggestions("nasa", 1)
       expect(suggestions.first["term"]).to eq("NASA")
-    end
-
-    it "preserves whitespace in suggestions" do
-      suggestions = SpellKit.suggestions("newyork", 1)
-      expect(suggestions.first["term"]).to eq("New York")
     end
 
     it "preserves mixed case in suggestions" do
@@ -90,12 +77,11 @@ RSpec.describe "Canonical Form Preservation" do
     end
 
     it "preserves canonical forms in batch operations" do
-      tokens = %w[nasa newyork iphone mcdonalds foobar]
+      tokens = %w[nasa iphone mcdonalds foobar]
       corrected = SpellKit.correct_tokens(tokens)
 
       expect(corrected).to eq([
         "NASA",
-        "New York",
         "iPhone",
         "McDonald's",
         "FooBar"
@@ -103,14 +89,14 @@ RSpec.describe "Canonical Form Preservation" do
     end
 
     it "works with mixed case inputs" do
-      tokens = %w[NASA newyork IPHONE McDonalds]
+      tokens = %w[NASA IPHONE McDonalds foobar]
       corrected = SpellKit.correct_tokens(tokens)
 
       expect(corrected).to eq([
         "NASA",
-        "New York",
         "iPhone",
-        "McDonald's"
+        "McDonald's",
+        "FooBar"
       ])
     end
   end
@@ -122,8 +108,8 @@ RSpec.describe "Canonical Form Preservation" do
 
     it "preserves canonical forms with guard: :domain" do
       expect(SpellKit.correct("nasa", guard: :domain)).to eq("NASA")
-      expect(SpellKit.correct("newyork", guard: :domain)).to eq("New York")
       expect(SpellKit.correct("iphone", guard: :domain)).to eq("iPhone")
+      expect(SpellKit.correct("foobar", guard: :domain)).to eq("FooBar")
     end
 
     it "preserves canonical forms in batch with guard: :domain" do

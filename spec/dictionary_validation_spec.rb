@@ -19,19 +19,15 @@ RSpec.describe "Dictionary Validation" do
       expect(stats["skipped_malformed"]).to eq(3)
     end
 
-    it "supports multi-word terms by normalizing them" do
+    it "tracks multi-word terms (contain whitespace)" do
       SpellKit.load!(dictionary: malformed_dict)
 
       stats = SpellKit.stats
 
-      # Multi-word terms are now supported via normalization:
-      # - "New York	5000" normalizes to "newyork" but preserves canonical form
-      # - "cell culture	3000" normalizes to "cellculture" but preserves canonical form
-      expect(stats["skipped_multiword"]).to eq(0)
-
-      # Verify they can be looked up and return canonical forms
-      expect(SpellKit.correct("newyork")).to eq("New York")
-      expect(SpellKit.correct("cellculture")).to eq("cell culture")
+      # Should track multi-word entries:
+      # - "New York	5000" (term contains space)
+      # - "cell culture	3000" (term contains space)
+      expect(stats["skipped_multiword"]).to eq(2)
     end
 
     it "tracks invalid frequency values" do
@@ -54,14 +50,11 @@ RSpec.describe "Dictionary Validation" do
       # - world	8000
       # - valid	2000
       # - another-valid	1500
-      # - New York	5000 (multi-word terms now supported)
-      # - cell culture	3000 (multi-word terms now supported)
-      expect(stats["dictionary_size"]).to eq(6)
+      expect(stats["dictionary_size"]).to eq(4)
 
       # Verify they work
       expect(SpellKit.correct("helo")).to eq("hello")
       expect(SpellKit.correct("wrld")).to eq("world")
-      expect(SpellKit.correct("newyork")).to eq("New York")
     end
 
     it "initializes skip counters to zero" do
@@ -201,10 +194,10 @@ RSpec.describe "Dictionary Validation" do
       empty_dict.unlink
     end
 
-    it "handles file with valid and invalid entries" do
+    it "handles file with only invalid entries" do
       invalid_dict = Tempfile.new(["invalid", ".tsv"])
-      invalid_dict.write("New York\t1000\n")  # Valid - multi-word terms now supported
-      invalid_dict.write("hello world\t2000\n")  # Valid - multi-word terms now supported
+      invalid_dict.write("New York\t1000\n")  # Multi-word
+      invalid_dict.write("hello world\t2000\n")  # Multi-word
       invalid_dict.write("bad\tnot_a_number\n")  # Invalid freq
       invalid_dict.write("\t999\n")  # Empty term
       invalid_dict.close
@@ -212,8 +205,8 @@ RSpec.describe "Dictionary Validation" do
       SpellKit.load!(dictionary: invalid_dict.path)
       stats = SpellKit.stats
 
-      expect(stats["dictionary_size"]).to eq(2)  # New York and hello world
-      expect(stats["skipped_multiword"]).to eq(0)  # Multi-word terms are now supported
+      expect(stats["dictionary_size"]).to eq(0)
+      expect(stats["skipped_multiword"]).to eq(2)
       expect(stats["skipped_invalid_freq"]).to eq(1)
       expect(stats["skipped_malformed"]).to eq(1)
 
