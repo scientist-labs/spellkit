@@ -67,6 +67,7 @@ RSpec.describe "Dictionary Validation" do
       expect(stats["skipped_malformed"]).to eq(0)
       expect(stats["skipped_multiword"]).to eq(0)
       expect(stats["skipped_invalid_freq"]).to eq(0)
+      expect(stats["skipped_duplicates"]).to eq(0)
     end
   end
 
@@ -190,6 +191,7 @@ RSpec.describe "Dictionary Validation" do
       expect(stats["skipped_malformed"]).to eq(0)
       expect(stats["skipped_multiword"]).to eq(0)
       expect(stats["skipped_invalid_freq"]).to eq(0)
+      expect(stats["skipped_duplicates"]).to eq(0)
 
       empty_dict.unlink
     end
@@ -209,6 +211,7 @@ RSpec.describe "Dictionary Validation" do
       expect(stats["skipped_multiword"]).to eq(2)
       expect(stats["skipped_invalid_freq"]).to eq(1)
       expect(stats["skipped_malformed"]).to eq(1)
+      expect(stats["skipped_duplicates"]).to eq(0)
 
       invalid_dict.unlink
     end
@@ -245,7 +248,7 @@ RSpec.describe "Dictionary Validation" do
       negative_dict.unlink
     end
 
-    it "counts exact entries correctly with duplicates" do
+    it "counts unique entries correctly and tracks duplicates" do
       dup_dict = Tempfile.new(["dup", ".tsv"])
       dup_dict.write("hello\t1000\n")
       dup_dict.write("world\t2000\n")
@@ -255,14 +258,37 @@ RSpec.describe "Dictionary Validation" do
       SpellKit.load!(dictionary: dup_dict.path)
       stats = SpellKit.stats
 
-      # dictionary_size counts all attempts, not unique entries
-      expect(stats["dictionary_size"]).to eq(3)
+      # dictionary_size now counts only unique normalized entries
+      expect(stats["dictionary_size"]).to eq(2)
+      expect(stats["skipped_duplicates"]).to eq(1)
 
-      # But only 2 unique words in the actual dictionary
       # Verify hello was loaded (last entry wins with freq 3000)
       expect(SpellKit.correct("helo")).to eq("hello")
 
       dup_dict.unlink
+    end
+
+    it "tracks case-insensitive duplicates" do
+      case_dict = Tempfile.new(["case", ".tsv"])
+      case_dict.write("hello\t1000\n")
+      case_dict.write("HELLO\t2000\n")   # Same normalized form
+      case_dict.write("world\t3000\n")
+      case_dict.write("World\t4000\n")   # Same normalized form
+      case_dict.write("test\t5000\n")
+      case_dict.close
+
+      SpellKit.load!(dictionary: case_dict.path)
+      stats = SpellKit.stats
+
+      # 5 lines, but only 3 unique normalized forms
+      expect(stats["dictionary_size"]).to eq(3)
+      expect(stats["skipped_duplicates"]).to eq(2)
+
+      # Last entry wins: HELLO (2000), World (4000)
+      suggestions = SpellKit.suggestions("hello", 1)
+      expect(suggestions.first["freq"]).to eq(2000)
+
+      case_dict.unlink
     end
   end
 end

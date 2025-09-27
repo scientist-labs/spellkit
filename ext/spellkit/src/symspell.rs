@@ -70,14 +70,14 @@ impl SymSpell {
             .to_lowercase()
     }
 
-    pub fn add_word(&mut self, normalized: &str, canonical: &str, frequency: u64) {
-        self.words.insert(
+    pub fn add_word(&mut self, normalized: &str, canonical: &str, frequency: u64) -> bool {
+        let was_new = self.words.insert(
             normalized.to_string(),
             WordEntry {
                 canonical: canonical.to_string(),
                 frequency,
             },
-        );
+        ).is_none();
 
         let deletes = self.get_deletes(normalized, self.max_edit_distance);
         for delete in deletes {
@@ -86,6 +86,8 @@ impl SymSpell {
                 .or_insert_with(HashSet::new)
                 .insert(normalized.to_string());
         }
+
+        was_new
     }
 
     fn get_deletes(&self, word: &str, edit_distance: usize) -> HashSet<String> {

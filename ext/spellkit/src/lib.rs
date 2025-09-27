@@ -25,6 +25,7 @@ struct CheckerState {
     skipped_malformed: usize,
     skipped_multiword: usize,
     skipped_invalid_freq: usize,
+    skipped_duplicates: usize,
 }
 
 impl CheckerState {
@@ -40,6 +41,7 @@ impl CheckerState {
             skipped_malformed: 0,
             skipped_multiword: 0,
             skipped_invalid_freq: 0,
+            skipped_duplicates: 0,
         }
     }
 }
@@ -129,6 +131,7 @@ impl Checker {
         let mut skipped_malformed = 0;
         let mut skipped_multiword = 0;
         let mut skipped_invalid_freq = 0;
+        let mut skipped_duplicates = 0;
 
         use std::io::BufRead;
         for line in reader.lines() {
@@ -166,8 +169,12 @@ impl Checker {
             match freq_str.parse::<u64>() {
                 Ok(freq) => {
                     let normalized = SymSpell::normalize_word(term);
-                    symspell.add_word(&normalized, term, freq);
-                    dictionary_size += 1;
+                    let was_new = symspell.add_word(&normalized, term, freq);
+                    if was_new {
+                        dictionary_size += 1;
+                    } else {
+                        skipped_duplicates += 1;
+                    }
                 }
                 Err(_) => {
                     skipped_invalid_freq += 1;
@@ -235,6 +242,7 @@ impl Checker {
         state.skipped_malformed = skipped_malformed;
         state.skipped_multiword = skipped_multiword;
         state.skipped_invalid_freq = skipped_invalid_freq;
+        state.skipped_duplicates = skipped_duplicates;
 
         Ok(())
     }
@@ -337,6 +345,7 @@ impl Checker {
         stats.aset("skipped_malformed", state.skipped_malformed)?;
         stats.aset("skipped_multiword", state.skipped_multiword)?;
         stats.aset("skipped_invalid_freq", state.skipped_invalid_freq)?;
+        stats.aset("skipped_duplicates", state.skipped_duplicates)?;
 
         if let Some(loaded_at) = state.loaded_at {
             stats.aset("loaded_at", loaded_at)?;
