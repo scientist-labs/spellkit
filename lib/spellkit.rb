@@ -76,12 +76,12 @@ module SpellKit
       default.correct?(word)
     end
 
-    def correct(word, guard: nil)
-      default.correct(word, guard: guard)
+    def correct(word)
+      default.correct(word)
     end
 
-    def correct_tokens(tokens, guard: nil)
-      default.correct_tokens(tokens, guard: guard)
+    def correct_tokens(tokens)
+      default.correct_tokens(tokens)
     end
 
     def stats
@@ -211,19 +211,17 @@ class SpellKit::Checker
     _rust_correct?(word)
   end
 
-  def correct(word, guard: nil)
+  def correct(word)
     raise SpellKit::InvalidArgumentError, "word cannot be nil" if word.nil?
     raise SpellKit::InvalidArgumentError, "word cannot be empty" if word.to_s.empty?
 
-    use_guard = guard == :domain
-    _rust_correct(word, use_guard)
+    _rust_correct(word)
   end
 
-  def correct_tokens(tokens, guard: nil)
+  def correct_tokens(tokens)
     raise SpellKit::InvalidArgumentError, "tokens must be an Array" unless tokens.is_a?(Array)
 
-    use_guard = guard == :domain
-    _rust_correct_tokens(tokens, use_guard)
+    _rust_correct_tokens(tokens)
   end
 
   def stats

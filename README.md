@@ -146,13 +146,13 @@ SpellKit.load!(
   protected_patterns: [/^[A-Z]{3,4}\d+$/]
 )
 
-# Use guard: :domain to enable protection
-SpellKit.correct("CDK10", guard: :domain)
+# Protected terms are automatically respected
+SpellKit.correct("CDK10")
 # => "CDK10"  # protected, never changed
 
-# Batch correction with guards
+# Batch correction with protection
 tokens = %w[helllo wrld ABC-123 for CDK10]
-SpellKit.correct_tokens(tokens, guard: :domain)
+SpellKit.correct_tokens(tokens)
 # => ["hello", "world", "ABC-123", "for", "CDK10"]
 ```
 
@@ -300,7 +300,7 @@ SpellKit.correct("rarword")   # => "rarword" (no correction if freq < 1000)
 
 ### Skip Patterns
 
-SpellKit can automatically skip certain patterns to avoid "correcting" technical terms, URLs, and other special content. Inspired by Aspell's filter modes, these patterns are applied when `guard: :domain` is enabled.
+SpellKit can automatically skip certain patterns to avoid "correcting" technical terms, URLs, and other special content. Inspired by Aspell's filter modes, these patterns are automatically applied when configured.
 
 **Available skip patterns:**
 
@@ -315,13 +315,13 @@ SpellKit.load!(
 )
 
 # With skip patterns enabled, technical content is preserved
-SpellKit.correct("https://example.com", guard: :domain)  # => "https://example.com"
-SpellKit.correct("user@test.com", guard: :domain)        # => "user@test.com"
-SpellKit.correct("getElementById", guard: :domain)       # => "getElementById"
-SpellKit.correct("version-1.2.3", guard: :domain)        # => "version-1.2.3"
+SpellKit.correct("https://example.com")  # => "https://example.com"
+SpellKit.correct("user@test.com")        # => "user@test.com"
+SpellKit.correct("getElementById")       # => "getElementById"
+SpellKit.correct("version-1.2.3")        # => "version-1.2.3"
 
 # Regular typos are still corrected
-SpellKit.correct("helllo", guard: :domain)               # => "hello"
+SpellKit.correct("helllo")               # => "hello"
 ```
 
 **What each skip pattern matches:**
@@ -351,9 +351,9 @@ SpellKit.load!(
   protected_patterns: [/^CUSTOM-\d+$/]  # Your custom patterns
 )
 
-# Both work together
-SpellKit.correct("https://example.com", guard: :domain)  # => "https://example.com" (skip_urls)
-SpellKit.correct("CUSTOM-123", guard: :domain)           # => "CUSTOM-123" (custom pattern)
+# Both work together automatically
+SpellKit.correct("https://example.com")  # => "https://example.com" (skip_urls)
+SpellKit.correct("CUSTOM-123")           # => "CUSTOM-123" (custom pattern)
 ```
 
 ## API Reference
@@ -426,33 +426,32 @@ SpellKit.suggestions("helllo", 5)
 # => [{"term"=>"hello", "distance"=>1, "freq"=>10000}, ...]
 ```
 
-### `SpellKit.correct(word, guard:)`
+### `SpellKit.correct(word)`
 
-Return corrected word or original if no better match found. Respects `frequency_threshold` configuration.
+Return corrected word or original if no better match found. Respects `frequency_threshold` configuration. Protected terms and skip patterns are automatically applied when configured.
 
 **Parameters:**
 - `word` (required) - The word to correct
-- `guard:` (optional) - Set to `:domain` to enable protection checks
 
 **Behavior:**
 - Returns original word if it exists in dictionary
 - For misspellings, only accepts corrections with frequency ≥ `frequency_threshold`
 - Returns original word if no corrections pass the threshold
-- When `guard: :domain` is set, protected terms and skip patterns are applied
+- Automatically respects protected terms and skip patterns configured in `load!`
 
 **Example:**
 ```ruby
-SpellKit.correct("helllo")                  # => "hello"
-SpellKit.correct("hello")                   # => "hello" (already correct)
-SpellKit.correct("CDK10", guard: :domain)   # => "CDK10" (protected)
+SpellKit.correct("helllo")  # => "hello"
+SpellKit.correct("hello")   # => "hello" (already correct)
+SpellKit.correct("CDK10")   # => "CDK10" (protected if configured)
 ```
 
-### `SpellKit.correct_tokens(tokens, guard:)`
+### `SpellKit.correct_tokens(tokens)`
 
-Batch correction of an array of tokens. Respects `frequency_threshold` configuration.
+Batch correction of an array of tokens. Respects `frequency_threshold` configuration. Protected terms and skip patterns are automatically applied when configured.
 
-**Options:**
-- `guard:` - Set to `:domain` to enable protection checks
+**Parameters:**
+- `tokens` (required) - Array of words to correct
 
 **Returns:** Array of corrected strings
 
@@ -472,7 +471,7 @@ Verify system is properly loaded. Raises error if not.
 
 ## Term Protection
 
-The `guard: :domain` option enables protection for specific terms:
+When configured, SpellKit automatically protects specific terms from correction:
 
 ### Exact Matches
 Terms in `protected_path` file are never corrected, even if similar dictionary words exist. Matching is case-insensitive, but original casing is preserved in output.
@@ -536,7 +535,7 @@ end
 class SearchPreprocessor
   def self.correct_query(text)
     tokens = text.downcase.split(/\s+/)
-    SpellKit.correct_tokens(tokens, guard: :domain).join(" ")
+    SpellKit.correct_tokens(tokens).join(" ")
   end
 end
 ```
@@ -554,10 +553,10 @@ end
 - `correct`: 1,858 i/s (538.17 μs/i)
 - `correct_tokens` (batch): 2,005 i/s (498.76 μs/i)
 
-**Guard Performance:**
-- Without guard: 2,926 i/s (341.79 μs/i)
-- With guard: 9,337 i/s (107.10 μs/i) - **3.19x faster!**
-  *(Guards short-circuit expensive lookups)*
+**Protection Performance:**
+- Without protection: 2,926 i/s (341.79 μs/i)
+- With protection: 9,337 i/s (107.10 μs/i) - **3.19x faster!**
+  *(Protection checks short-circuit expensive dictionary lookups)*
 
 **Latency Distribution (10,000 iterations):**
 - p50: 61μs

@@ -48,10 +48,10 @@ bundle exec ruby benchmark/comparison_aspell.rb
 **Batch Correction (26 words):**
 - correct_tokens: 8,235 i/s (121.43 μs/i)
 
-**Guard Performance (7 words):**
-- without guard: 59,217 i/s (16.89 μs/i)
-- with guard: 105,685 i/s (9.46 μs/i) - 1.78x **faster**!
-  *(Guards short-circuit expensive lookups)*
+**Protection Performance (7 words):**
+- without protection: 59,217 i/s (16.89 μs/i)
+- with protection: 105,685 i/s (9.46 μs/i) - 1.78x **faster**!
+  *(Protection checks short-circuit expensive dictionary lookups)*
 
 **Latency Distribution (10,000 iterations):**
 - p50: 3μs

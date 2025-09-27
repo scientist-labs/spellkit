@@ -106,15 +106,15 @@ RSpec.describe "Canonical Form Preservation" do
       SpellKit.load!(dictionary: test_dict.path)
     end
 
-    it "preserves canonical forms with guard: :domain" do
-      expect(SpellKit.correct("nasa", guard: :domain)).to eq("NASA")
-      expect(SpellKit.correct("iphone", guard: :domain)).to eq("iPhone")
-      expect(SpellKit.correct("foobar", guard: :domain)).to eq("FooBar")
+    it "preserves canonical forms with protected terms" do
+      expect(SpellKit.correct("nasa")).to eq("NASA")
+      expect(SpellKit.correct("iphone")).to eq("iPhone")
+      expect(SpellKit.correct("foobar")).to eq("FooBar")
     end
 
-    it "preserves canonical forms in batch with guard: :domain" do
+    it "preserves canonical forms in batch with protected terms" do
       tokens = %w[nasa iphone foobar]
-      corrected = SpellKit.correct_tokens(tokens, guard: :domain)
+      corrected = SpellKit.correct_tokens(tokens)
 
       expect(corrected).to eq(["NASA", "iPhone", "FooBar"])
     end

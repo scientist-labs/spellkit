@@ -28,10 +28,10 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[helo CDK10 BRCA1 wrld rat lyssis]
 
       # Single-word corrections with guard
-      single_results = test_words.map { |word| SpellKit.correct(word, guard: :domain) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections with guard
-      batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
+      batch_results = SpellKit.correct_tokens(test_words)
 
       # Should be identical
       expect(batch_results).to eq(single_results)
@@ -83,10 +83,10 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[helo CDK10 IL6 wrld heo incubatio rat lyssis]
 
       # Single-word corrections with guard
-      single_results = test_words.map { |word| SpellKit.correct(word, guard: :domain) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections with guard
-      batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
+      batch_results = SpellKit.correct_tokens(test_words)
 
       # Should be identical
       expect(batch_results).to eq(single_results)
@@ -142,10 +142,10 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[helo CDK10 IL6 il-6 wrld]
 
       # Single-word corrections with guard
-      single_results = test_words.map { |word| SpellKit.correct(word, guard: :domain) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections with guard
-      batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
+      batch_results = SpellKit.correct_tokens(test_words)
 
       # Should be identical
       expect(batch_results).to eq(single_results)
@@ -176,10 +176,10 @@ RSpec.describe "Refactored Correction Logic" do
       ]
 
       # Single-word corrections
-      single_results = test_words.map { |word| SpellKit.correct(word, guard: :domain) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections
-      batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
+      batch_results = SpellKit.correct_tokens(test_words)
 
       # Should be identical
       expect(batch_results).to eq(single_results)

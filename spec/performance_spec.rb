@@ -59,7 +59,7 @@ RSpec.describe "Performance (M5)" do
       times = []
       1000.times do
         start = Time.now
-        SpellKit.correct("CDK10", guard: :domain)
+        SpellKit.correct("CDK10")
         times << (Time.now - start) * 1_000_000
       end
 

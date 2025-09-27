@@ -14,27 +14,27 @@ RSpec.describe "Guards & Domain Policies (M2)" do
 
   describe "protected terms" do
     it "does not correct protected terms" do
-      expect(SpellKit.correct("CDK10", guard: :domain)).to eq("CDK10")
-      expect(SpellKit.correct("BRCA1", guard: :domain)).to eq("BRCA1")
-      expect(SpellKit.correct("rat", guard: :domain)).to eq("rat")
-      expect(SpellKit.correct("mouse", guard: :domain)).to eq("mouse")
+      expect(SpellKit.correct("CDK10")).to eq("CDK10")
+      expect(SpellKit.correct("BRCA1")).to eq("BRCA1")
+      expect(SpellKit.correct("rat")).to eq("rat")
+      expect(SpellKit.correct("mouse")).to eq("mouse")
     end
 
     it "handles IL-6 and IL6 variants" do
-      expect(SpellKit.correct("IL6", guard: :domain)).to eq("IL6")
-      expect(SpellKit.correct("IL-6", guard: :domain)).to eq("IL-6")
+      expect(SpellKit.correct("IL6")).to eq("IL6")
+      expect(SpellKit.correct("IL-6")).to eq("IL-6")
     end
 
     it "corrects non-protected typos when guard is enabled" do
       # "lyssis" is not protected and should be corrected
-      expect(SpellKit.correct("helo", guard: :domain)).to eq("hello")
+      expect(SpellKit.correct("helo")).to eq("hello")
     end
   end
 
   describe "batch correction with guards" do
     it "corrects tokens while preserving protected terms" do
       tokens = %w[rat lyssis buffers for CDK10]
-      corrected = SpellKit.correct_tokens(tokens, guard: :domain)
+      corrected = SpellKit.correct_tokens(tokens)
 
       expect(corrected).to eq(%w[rat lysis buffer for CDK10])
       # "lyssis" → "lysis" (ED=1), "buffers" → "buffer" (ED=1), "CDK10" protected
@@ -48,12 +48,12 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Protected terms should remain protected even with edit_distance: 2
-      expect(SpellKit.correct("CDK10", guard: :domain)).to eq("CDK10")
-      expect(SpellKit.correct("BRCA1", guard: :domain)).to eq("BRCA1")
+      expect(SpellKit.correct("CDK10")).to eq("CDK10")
+      expect(SpellKit.correct("BRCA1")).to eq("BRCA1")
 
       # Non-protected distance-2 typos should still be corrected
       # "heo" -> "hello" (distance 2)
-      expect(SpellKit.correct("heo", guard: :domain)).to eq("hello")
+      expect(SpellKit.correct("heo")).to eq("hello")
     end
   end
 
@@ -61,7 +61,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
     it "may incorrectly 'correct' domain terms" do
       # Without guards, CDK10 might get changed if there's a similar word
       # This test shows why guards are important
-      result = SpellKit.correct("CDK10", guard: nil)
+      result = SpellKit.correct("CDK10")
       # CDK10 won't match anything in our small test dictionary
       expect(result).to eq("CDK10") # No close match, stays the same
     end
@@ -76,14 +76,14 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Should protect gene symbols like CDK10, BRCA1
-      expect(SpellKit.correct("CDK10", guard: :domain)).to eq("CDK10")
-      expect(SpellKit.correct("BRCA1", guard: :domain)).to eq("BRCA1")
+      expect(SpellKit.correct("CDK10")).to eq("CDK10")
+      expect(SpellKit.correct("BRCA1")).to eq("BRCA1")
 
       # Should protect CAS numbers
-      expect(SpellKit.correct("7732-18-5", guard: :domain)).to eq("7732-18-5")
+      expect(SpellKit.correct("7732-18-5")).to eq("7732-18-5")
 
       # Should still correct non-matching terms
-      expect(SpellKit.correct("helo", guard: :domain)).to eq("hello")
+      expect(SpellKit.correct("helo")).to eq("hello")
     end
 
     it "accepts both Regexp and String patterns" do
@@ -93,9 +93,9 @@ RSpec.describe "Guards & Domain Policies (M2)" do
         protected_patterns: [/^CDK\d+$/, "^IL-?\\d+$"]
       )
 
-      expect(SpellKit.correct("CDK10", guard: :domain)).to eq("CDK10")
-      expect(SpellKit.correct("IL6", guard: :domain)).to eq("IL6")
-      expect(SpellKit.correct("IL-6", guard: :domain)).to eq("IL-6")
+      expect(SpellKit.correct("CDK10")).to eq("CDK10")
+      expect(SpellKit.correct("IL6")).to eq("IL6")
+      expect(SpellKit.correct("IL-6")).to eq("IL-6")
     end
   end
 
@@ -108,11 +108,11 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Should match regardless of case
-      expect(SpellKit.correct("IL6", guard: :domain)).to eq("IL6")
-      expect(SpellKit.correct("il6", guard: :domain)).to eq("il6")
-      expect(SpellKit.correct("Il6", guard: :domain)).to eq("Il6")
-      expect(SpellKit.correct("IL-6", guard: :domain)).to eq("IL-6")
-      expect(SpellKit.correct("il-6", guard: :domain)).to eq("il-6")
+      expect(SpellKit.correct("IL6")).to eq("IL6")
+      expect(SpellKit.correct("il6")).to eq("il6")
+      expect(SpellKit.correct("Il6")).to eq("Il6")
+      expect(SpellKit.correct("IL-6")).to eq("IL-6")
+      expect(SpellKit.correct("il-6")).to eq("il-6")
     end
 
     it "respects case-sensitive patterns without flag" do
@@ -123,8 +123,8 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Should only match uppercase IL
-      expect(SpellKit.correct("IL6", guard: :domain)).to eq("IL6")
-      expect(SpellKit.correct("IL-6", guard: :domain)).to eq("IL-6")
+      expect(SpellKit.correct("IL6")).to eq("IL6")
+      expect(SpellKit.correct("IL-6")).to eq("IL-6")
 
       # Lowercase should NOT be protected (case-sensitive pattern)
       # We can verify this by checking it's NOT in the protected set
@@ -133,7 +133,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
         dictionary: test_unigrams,
         protected_patterns: [/^IL-?\d+$/i]  # Now with /i flag
       )
-      expect(SpellKit.correct("il6", guard: :domain)).to eq("il6")  # Protected now!
+      expect(SpellKit.correct("il6")).to eq("il6")  # Protected now!
     end
 
     it "honors multiline flag from Ruby Regexp" do
@@ -144,7 +144,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
         protected_patterns: [/^test$/m]  # Multiline mode
       )
 
-      expect(SpellKit.correct("test", guard: :domain)).to eq("test")
+      expect(SpellKit.correct("test")).to eq("test")
     end
 
     it "honors extended flag for readable patterns" do
@@ -159,8 +159,8 @@ RSpec.describe "Guards & Domain Policies (M2)" do
         ]
       )
 
-      expect(SpellKit.correct("CDK10", guard: :domain)).to eq("CDK10")
-      expect(SpellKit.correct("BRCA1", guard: :domain)).to eq("BRCA1")
+      expect(SpellKit.correct("CDK10")).to eq("CDK10")
+      expect(SpellKit.correct("BRCA1")).to eq("BRCA1")
     end
 
     it "combines case-insensitive + extended flags (/ix)" do
@@ -175,9 +175,9 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Should match regardless of case due to /i flag
-      expect(SpellKit.correct("IL6", guard: :domain)).to eq("IL6")
-      expect(SpellKit.correct("il6", guard: :domain)).to eq("il6")
-      expect(SpellKit.correct("Il-6", guard: :domain)).to eq("Il-6")
+      expect(SpellKit.correct("IL6")).to eq("IL6")
+      expect(SpellKit.correct("il6")).to eq("il6")
+      expect(SpellKit.correct("Il-6")).to eq("Il-6")
     end
 
     it "combines case-insensitive + multiline flags (/im)" do
@@ -188,9 +188,9 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Should match "test" with any case
-      expect(SpellKit.correct("test", guard: :domain)).to eq("test")
-      expect(SpellKit.correct("TEST", guard: :domain)).to eq("TEST")
-      expect(SpellKit.correct("Test", guard: :domain)).to eq("Test")
+      expect(SpellKit.correct("test")).to eq("test")
+      expect(SpellKit.correct("TEST")).to eq("TEST")
+      expect(SpellKit.correct("Test")).to eq("Test")
     end
 
     it "combines multiline + extended flags (/mx)" do
@@ -203,7 +203,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
         ]
       )
 
-      expect(SpellKit.correct("test", guard: :domain)).to eq("test")
+      expect(SpellKit.correct("test")).to eq("test")
     end
 
     it "combines all three flags together (/imx)" do
@@ -219,11 +219,11 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Should match regardless of case (due to /i)
-      expect(SpellKit.correct("test", guard: :domain)).to eq("test")
-      expect(SpellKit.correct("TEST", guard: :domain)).to eq("TEST")
-      expect(SpellKit.correct("testing", guard: :domain)).to eq("testing")
-      expect(SpellKit.correct("TESTING", guard: :domain)).to eq("TESTING")
-      expect(SpellKit.correct("Testing", guard: :domain)).to eq("Testing")
+      expect(SpellKit.correct("test")).to eq("test")
+      expect(SpellKit.correct("TEST")).to eq("TEST")
+      expect(SpellKit.correct("testing")).to eq("testing")
+      expect(SpellKit.correct("TESTING")).to eq("TESTING")
+      expect(SpellKit.correct("Testing")).to eq("Testing")
     end
 
     it "handles String patterns as case-sensitive by default" do
@@ -234,8 +234,8 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Should only match uppercase
-      expect(SpellKit.correct("IL6", guard: :domain)).to eq("IL6")
-      expect(SpellKit.correct("IL-6", guard: :domain)).to eq("IL-6")
+      expect(SpellKit.correct("IL6")).to eq("IL6")
+      expect(SpellKit.correct("IL-6")).to eq("IL-6")
 
       # Verify String patterns are case-sensitive by comparing to Regexp with /i
       SpellKit.load!(
@@ -243,7 +243,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
         protected_patterns: [/^IL-?\d+$/i]  # Regexp with /i flag
       )
       # Now lowercase should be protected
-      expect(SpellKit.correct("il6", guard: :domain)).to eq("il6")
+      expect(SpellKit.correct("il6")).to eq("il6")
     end
 
     it "preserves pattern matching logic with case-insensitive flag" do
@@ -255,16 +255,16 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Should match any case of these gene symbols
-      expect(SpellKit.correct("CDK10", guard: :domain)).to eq("CDK10")
-      expect(SpellKit.correct("cdk10", guard: :domain)).to eq("cdk10")
-      expect(SpellKit.correct("Cdk10", guard: :domain)).to eq("Cdk10")
-      expect(SpellKit.correct("BRCA1", guard: :domain)).to eq("BRCA1")
-      expect(SpellKit.correct("brca1", guard: :domain)).to eq("brca1")
-      expect(SpellKit.correct("TP538", guard: :domain)).to eq("TP538")
-      expect(SpellKit.correct("tp538", guard: :domain)).to eq("tp538")
+      expect(SpellKit.correct("CDK10")).to eq("CDK10")
+      expect(SpellKit.correct("cdk10")).to eq("cdk10")
+      expect(SpellKit.correct("Cdk10")).to eq("Cdk10")
+      expect(SpellKit.correct("BRCA1")).to eq("BRCA1")
+      expect(SpellKit.correct("brca1")).to eq("brca1")
+      expect(SpellKit.correct("TP538")).to eq("TP538")
+      expect(SpellKit.correct("tp538")).to eq("tp538")
 
       # But NOT match different patterns
-      result = SpellKit.correct("XYZ999", guard: :domain)
+      result = SpellKit.correct("XYZ999")
       expect(result).to eq("XYZ999")  # No dictionary match, stays unchanged but NOT protected
     end
 
@@ -279,12 +279,12 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # CDK pattern: only uppercase protected
-      expect(SpellKit.correct("CDK10", guard: :domain)).to eq("CDK10")
+      expect(SpellKit.correct("CDK10")).to eq("CDK10")
 
       # IL pattern: all cases protected
-      expect(SpellKit.correct("IL6", guard: :domain)).to eq("IL6")
-      expect(SpellKit.correct("il6", guard: :domain)).to eq("il6")
-      expect(SpellKit.correct("Il-6", guard: :domain)).to eq("Il-6")
+      expect(SpellKit.correct("IL6")).to eq("IL6")
+      expect(SpellKit.correct("il6")).to eq("il6")
+      expect(SpellKit.correct("Il-6")).to eq("Il-6")
     end
   end
 
@@ -303,18 +303,18 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Literal forms should be protected
-      expect(SpellKit.correct("New York", guard: :domain)).to eq("New York")
-      expect(SpellKit.correct("cell culture", guard: :domain)).to eq("cell culture")
+      expect(SpellKit.correct("New York")).to eq("New York")
+      expect(SpellKit.correct("cell culture")).to eq("cell culture")
 
       # Lowercase forms should be protected
-      expect(SpellKit.correct("new york", guard: :domain)).to eq("new york")
-      expect(SpellKit.correct("cell culture", guard: :domain)).to eq("cell culture")
+      expect(SpellKit.correct("new york")).to eq("new york")
+      expect(SpellKit.correct("cell culture")).to eq("cell culture")
 
       # Normalized forms (whitespace stripped) should ALSO be protected
-      expect(SpellKit.correct("newyork", guard: :domain)).to eq("newyork")
-      expect(SpellKit.correct("NewYork", guard: :domain)).to eq("NewYork")
-      expect(SpellKit.correct("cellculture", guard: :domain)).to eq("cellculture")
-      expect(SpellKit.correct("CellCulture", guard: :domain)).to eq("CellCulture")
+      expect(SpellKit.correct("newyork")).to eq("newyork")
+      expect(SpellKit.correct("NewYork")).to eq("NewYork")
+      expect(SpellKit.correct("cellculture")).to eq("cellculture")
+      expect(SpellKit.correct("CellCulture")).to eq("CellCulture")
 
       protected_with_spaces.unlink
     end
@@ -332,12 +332,12 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Literal forms
-      expect(SpellKit.correct("IL-6", guard: :domain)).to eq("IL-6")
-      expect(SpellKit.correct("p-value", guard: :domain)).to eq("p-value")
+      expect(SpellKit.correct("IL-6")).to eq("IL-6")
+      expect(SpellKit.correct("p-value")).to eq("p-value")
 
       # Lowercase forms (punctuation preserved)
-      expect(SpellKit.correct("il-6", guard: :domain)).to eq("il-6")
-      expect(SpellKit.correct("p-value", guard: :domain)).to eq("p-value")
+      expect(SpellKit.correct("il-6")).to eq("il-6")
+      expect(SpellKit.correct("p-value")).to eq("p-value")
 
       # Note: normalize_word doesn't strip punctuation, only whitespace
       # So IL-6 normalizes to "il-6" (with dash), not "il6"
@@ -358,12 +358,12 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Literal forms
-      expect(SpellKit.correct("New York, NY", guard: :domain)).to eq("New York, NY")
-      expect(SpellKit.correct("Smith, J.", guard: :domain)).to eq("Smith, J.")
+      expect(SpellKit.correct("New York, NY")).to eq("New York, NY")
+      expect(SpellKit.correct("Smith, J.")).to eq("Smith, J.")
 
       # Normalized forms (whitespace stripped, punctuation preserved)
-      expect(SpellKit.correct("newyork,ny", guard: :domain)).to eq("newyork,ny")
-      expect(SpellKit.correct("smith,j.", guard: :domain)).to eq("smith,j.")
+      expect(SpellKit.correct("newyork,ny")).to eq("newyork,ny")
+      expect(SpellKit.correct("smith,j.")).to eq("smith,j.")
 
       protected_mixed.unlink
     end
@@ -383,11 +383,11 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # All forms should work (HashSet handles duplicates)
-      expect(SpellKit.correct("test", guard: :domain)).to eq("test")
-      expect(SpellKit.correct("TEST", guard: :domain)).to eq("TEST")
-      expect(SpellKit.correct("Test", guard: :domain)).to eq("Test")
-      expect(SpellKit.correct("hello", guard: :domain)).to eq("hello")
-      expect(SpellKit.correct("HELLO", guard: :domain)).to eq("HELLO")
+      expect(SpellKit.correct("test")).to eq("test")
+      expect(SpellKit.correct("TEST")).to eq("TEST")
+      expect(SpellKit.correct("Test")).to eq("Test")
+      expect(SpellKit.correct("hello")).to eq("hello")
+      expect(SpellKit.correct("HELLO")).to eq("HELLO")
 
       protected_dups.unlink
     end
@@ -405,13 +405,13 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Protected file terms (all variants)
-      expect(SpellKit.correct("New York", guard: :domain)).to eq("New York")
-      expect(SpellKit.correct("newyork", guard: :domain)).to eq("newyork")
+      expect(SpellKit.correct("New York")).to eq("New York")
+      expect(SpellKit.correct("newyork")).to eq("newyork")
 
       # Protected pattern matches
-      expect(SpellKit.correct("IL6", guard: :domain)).to eq("IL6")
-      expect(SpellKit.correct("IL-6", guard: :domain)).to eq("IL-6")
-      expect(SpellKit.correct("il6", guard: :domain)).to eq("il6")
+      expect(SpellKit.correct("IL6")).to eq("IL6")
+      expect(SpellKit.correct("IL-6")).to eq("IL-6")
+      expect(SpellKit.correct("il6")).to eq("il6")
 
       protected_mixed_guards.unlink
     end
@@ -440,7 +440,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       # Replace escaped spaces with actual spaces
       tokens = ["New York", "newyork", "cell culture", "cellculture", "hello"]
 
-      corrected = SpellKit.correct_tokens(tokens, guard: :domain)
+      corrected = SpellKit.correct_tokens(tokens)
 
       # All protected variants should remain unchanged
       expect(corrected[0]).to eq("New York")
@@ -465,16 +465,16 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Literal forms with multiple spaces should be protected
-      expect(SpellKit.correct("New  York", guard: :domain)).to eq("New  York")
-      expect(SpellKit.correct("test   term", guard: :domain)).to eq("test   term")
+      expect(SpellKit.correct("New  York")).to eq("New  York")
+      expect(SpellKit.correct("test   term")).to eq("test   term")
 
       # Normalized forms (all spaces stripped) should also be protected
-      expect(SpellKit.correct("newyork", guard: :domain)).to eq("newyork")
-      expect(SpellKit.correct("testterm", guard: :domain)).to eq("testterm")
+      expect(SpellKit.correct("newyork")).to eq("newyork")
+      expect(SpellKit.correct("testterm")).to eq("testterm")
 
       # Single space versions should also be protected (lowercase form)
-      expect(SpellKit.correct("new york", guard: :domain)).to eq("new york")
-      expect(SpellKit.correct("test term", guard: :domain)).to eq("test term")
+      expect(SpellKit.correct("new york")).to eq("new york")
+      expect(SpellKit.correct("test term")).to eq("test term")
 
       protected_spaces.unlink
     end
@@ -492,11 +492,11 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Literal forms should be protected
-      expect(SpellKit.correct("New\tYork", guard: :domain)).to eq("New\tYork")
+      expect(SpellKit.correct("New\tYork")).to eq("New\tYork")
 
       # Normalized forms (all whitespace stripped) should be protected
-      expect(SpellKit.correct("newyork", guard: :domain)).to eq("newyork")
-      expect(SpellKit.correct("cellculture", guard: :domain)).to eq("cellculture")
+      expect(SpellKit.correct("newyork")).to eq("newyork")
+      expect(SpellKit.correct("cellculture")).to eq("cellculture")
 
       protected_tabs.unlink
     end
@@ -515,7 +515,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Valid term should work
-      expect(SpellKit.correct("hello", guard: :domain)).to eq("hello")
+      expect(SpellKit.correct("hello")).to eq("hello")
 
       protected_empty.unlink
     end
@@ -533,7 +533,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Verify normalized form is protected
-      expect(SpellKit.correct("newyork", guard: :domain)).to eq("newyork")
+      expect(SpellKit.correct("newyork")).to eq("newyork")
 
       # Hot reload
       SpellKit.load!(
@@ -543,8 +543,8 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # Normalized form should still be protected after reload
-      expect(SpellKit.correct("newyork", guard: :domain)).to eq("newyork")
-      expect(SpellKit.correct("New York", guard: :domain)).to eq("New York")
+      expect(SpellKit.correct("newyork")).to eq("newyork")
+      expect(SpellKit.correct("New York")).to eq("New York")
 
       protected_reload.unlink
     end
@@ -561,9 +561,9 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
 
       # All variants should still be protected
-      expect(SpellKit.correct("New York", guard: :domain)).to eq("New York")
-      expect(SpellKit.correct("newyork", guard: :domain)).to eq("newyork")
-      expect(SpellKit.correct("NewYork", guard: :domain)).to eq("NewYork")
+      expect(SpellKit.correct("New York")).to eq("New York")
+      expect(SpellKit.correct("newyork")).to eq("newyork")
+      expect(SpellKit.correct("NewYork")).to eq("NewYork")
 
       protected_ed1.unlink
     end

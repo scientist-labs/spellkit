@@ -52,14 +52,11 @@ fn correct_word(
     state: &CheckerState,
     symspell: &SymSpell,
     word: &str,
-    use_guard: bool,
 ) -> String {
-    // Check if word is protected
-    if use_guard {
-        let normalized = SymSpell::normalize_word(word);
-        if state.guards.is_protected_normalized(word, &normalized) {
-            return word.to_string();
-        }
+    // Always check if word is protected
+    let normalized = SymSpell::normalize_word(word);
+    if state.guards.is_protected_normalized(word, &normalized) {
+        return word.to_string();
     }
 
     let suggestions = symspell.suggestions(word, 5);
@@ -298,7 +295,7 @@ impl Checker {
         }
     }
 
-    fn correct_if_unknown(&self, word: String, use_guard: Option<bool>) -> Result<String, Error> {
+    fn correct_if_unknown(&self, word: String) -> Result<String, Error> {
         let ruby = Ruby::get().unwrap();
         let state = self.state.read().unwrap();
 
@@ -307,18 +304,17 @@ impl Checker {
         }
 
         if let Some(ref symspell) = state.symspell {
-            Ok(correct_word(&state, symspell, &word, use_guard.unwrap_or(false)))
+            Ok(correct_word(&state, symspell, &word))
         } else {
             Err(Error::new(ruby.exception_runtime_error(), "SymSpell not initialized"))
         }
     }
 
-    fn correct_tokens(&self, tokens: RArray, use_guard: Option<bool>) -> Result<RArray, Error> {
+    fn correct_tokens(&self, tokens: RArray) -> Result<RArray, Error> {
         // Optimize batch correction by acquiring lock once for all tokens
         // instead of calling correct_if_unknown per token (which re-locks each time)
         let ruby = Ruby::get().unwrap();
         let state = self.state.read().unwrap();
-        let use_guard = use_guard.unwrap_or(false);
 
         if !state.loaded {
             return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded. Call load! first"));
@@ -329,7 +325,7 @@ impl Checker {
         if let Some(ref symspell) = state.symspell {
             for token in tokens.into_iter() {
                 let word: String = TryConvert::try_convert(token)?;
-                let corrected = correct_word(&state, symspell, &word, use_guard);
+                let corrected = correct_word(&state, symspell, &word);
                 result.push(corrected)?;
             }
 
@@ -388,8 +384,8 @@ fn init(_ruby: &Ruby) -> Result<(), Error> {
     checker_class.define_method("load!", method!(Checker::load_full, 1))?;
     checker_class.define_method("suggestions", method!(Checker::suggestions, 2))?;
     checker_class.define_method("correct?", method!(Checker::correct, 1))?;
-    checker_class.define_method("correct", method!(Checker::correct_if_unknown, 2))?;
-    checker_class.define_method("correct_tokens", method!(Checker::correct_tokens, 2))?;
+    checker_class.define_method("correct", method!(Checker::correct_if_unknown, 1))?;
+    checker_class.define_method("correct_tokens", method!(Checker::correct_tokens, 1))?;
     checker_class.define_method("stats", method!(Checker::stats, 0))?;
     checker_class.define_method("healthcheck", method!(Checker::healthcheck, 0))?;
 
