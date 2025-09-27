@@ -266,8 +266,29 @@ SpellKit.load!(
   protected_path: "models/protected.txt",            # optional
   protected_patterns: [/^[A-Z]{3,4}\d+$/],           # optional
   edit_distance: 1,                                  # 1 (default) or 2
-  frequency_threshold: 10.0                          # default: 10.0
+  frequency_threshold: 10.0                          # default: 10.0 (minimum frequency for corrections)
 )
+```
+
+### Frequency Threshold
+
+The `frequency_threshold` parameter controls which corrections are accepted by `correct_if_unknown` and `correct_tokens`:
+
+- **For misspelled words** (not in dictionary): Only suggest corrections with frequency ≥ `frequency_threshold`
+- **For dictionary words**: Only suggest alternatives with frequency ≥ `frequency_threshold × original_frequency`
+
+This prevents suggesting rare words as corrections for common typos.
+
+**Example:**
+```ruby
+# With default threshold (10.0), suggest any correction with freq ≥ 10
+SpellKit.load!(dictionary: "dict.tsv")
+SpellKit.correct_if_unknown("helo")  # => "hello" (if freq ≥ 10)
+
+# With high threshold (1000.0), only suggest common corrections
+SpellKit.load!(dictionary: "dict.tsv", frequency_threshold: 1000.0)
+SpellKit.correct_if_unknown("helo")      # => "hello" (if freq ≥ 1000)
+SpellKit.correct_if_unknown("rarword")   # => "rarword" (no correction if freq < 1000)
 ```
 
 ## API Reference
@@ -324,14 +345,22 @@ Get ranked suggestions for a word.
 
 ### `SpellKit.correct_if_unknown(word, guard:)`
 
-Return corrected word or original if no better match found.
+Return corrected word or original if no better match found. Respects `frequency_threshold` configuration.
 
 **Options:**
 - `guard:` - Set to `:domain` to enable protection checks
 
+**Behavior:**
+- Returns original word if it exists in dictionary
+- For misspellings, only accepts corrections with frequency ≥ `frequency_threshold`
+- Returns original word if no corrections pass the threshold
+
 ### `SpellKit.correct_tokens(tokens, guard:)`
 
-Batch correction of an array of tokens.
+Batch correction of an array of tokens. Respects `frequency_threshold` configuration.
+
+**Options:**
+- `guard:` - Set to `:domain` to enable protection checks
 
 **Returns:** Array of corrected strings
 

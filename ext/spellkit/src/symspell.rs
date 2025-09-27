@@ -135,6 +135,11 @@ impl SymSpell {
         self.words.contains_key(&normalized)
     }
 
+    pub fn get_frequency(&self, word: &str) -> Option<u64> {
+        let normalized = Self::normalize_word(word);
+        self.words.get(&normalized).copied()
+    }
+
     pub fn suggest(&self, word: &str, max_suggestions: usize) -> Vec<Suggestion> {
         let normalized = Self::normalize_word(word);
         let mut suggestions = Vec::new();

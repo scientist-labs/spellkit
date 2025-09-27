@@ -188,16 +188,29 @@ impl Checker {
                 return Ok(word);
             }
 
-            // Find best correction with frequency gating
+            // Get original word's frequency (if it exists in dictionary)
+            let original_freq = symspell.get_frequency(&word);
+
+            // Find best correction with frequency threshold
             for suggestion in &suggestions {
                 if suggestion.distance <= 1 {
-                    // Check frequency threshold - correction should be significantly more common
-                    // Since we don't have the original word's frequency, we'll just take any ED=1 match
-                    // In a full implementation, we'd check if suggestion.frequency >= threshold * original_freq
-                    return Ok(suggestion.term.clone());
+                    // Apply frequency threshold
+                    let passes_threshold = match original_freq {
+                        // Word not in dictionary: require suggestion frequency >= absolute threshold
+                        None => suggestion.frequency as f64 >= state.frequency_threshold,
+                        // Word in dictionary: require suggestion frequency >= threshold * original frequency
+                        Some(orig_freq) => {
+                            suggestion.frequency as f64 >= state.frequency_threshold * orig_freq as f64
+                        }
+                    };
+
+                    if passes_threshold {
+                        return Ok(suggestion.term.clone());
+                    }
                 }
             }
 
+            // No suggestions passed the threshold
             Ok(word)
         } else {
             Err(Error::new(ruby.exception_runtime_error(), "SymSpell not initialized"))

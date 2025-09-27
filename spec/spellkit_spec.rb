@@ -104,5 +104,35 @@ RSpec.describe SpellKit do
     it "returns original word if no good correction found" do
       expect(SpellKit.correct_if_unknown("zzzzzz")).to eq("zzzzzz")
     end
+
+    describe "frequency threshold" do
+      it "rejects corrections below absolute frequency threshold" do
+        # "incubation" has frequency 600 in test dictionary
+        # Set threshold to 1000, so 600 < 1000 = rejection
+        SpellKit.load!(dictionary: test_unigrams, frequency_threshold: 1000.0)
+
+        # "incubatio" -> "incubation" (distance 1, freq 600)
+        # Should NOT correct because 600 < 1000
+        expect(SpellKit.correct_if_unknown("incubatio")).to eq("incubatio")
+      end
+
+      it "accepts corrections above absolute frequency threshold" do
+        # "hello" has frequency 10000 in test dictionary
+        # Set threshold to 1000, so 10000 >= 1000 = acceptance
+        SpellKit.load!(dictionary: test_unigrams, frequency_threshold: 1000.0)
+
+        # "helo" -> "hello" (distance 1, freq 10000)
+        # Should correct because 10000 >= 1000
+        expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
+      end
+
+      it "uses default threshold of 10.0" do
+        SpellKit.load!(dictionary: test_unigrams)
+
+        # All words in test dictionary have freq >= 10, so corrections should work
+        expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
+        expect(SpellKit.correct_if_unknown("incubatio")).to eq("incubation")
+      end
+    end
   end
 end
