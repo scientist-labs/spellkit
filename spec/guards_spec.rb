@@ -1,3 +1,5 @@
+require "tempfile"
+
 RSpec.describe "Guards & Domain Policies (M2)" do
   let(:test_unigrams) { File.expand_path("fixtures/test_unigrams.tsv", __dir__) }
   let(:protected_file) { File.expand_path("fixtures/protected.txt", __dir__) }
@@ -283,6 +285,135 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       expect(SpellKit.correct_if_unknown("IL6", guard: :domain)).to eq("IL6")
       expect(SpellKit.correct_if_unknown("il6", guard: :domain)).to eq("il6")
       expect(SpellKit.correct_if_unknown("Il-6", guard: :domain)).to eq("Il-6")
+    end
+  end
+
+  describe "normalized variant protection" do
+    it "protects normalized variants of protected terms automatically" do
+      # Create a protected list with terms that have whitespace
+      protected_with_spaces = Tempfile.new(["protected_spaces", ".txt"])
+      protected_with_spaces.write("New York\n")
+      protected_with_spaces.write("cell culture\n")
+      protected_with_spaces.close
+
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_with_spaces.path,
+        edit_distance: 2
+      )
+
+      # Literal forms should be protected
+      expect(SpellKit.correct_if_unknown("New York", guard: :domain)).to eq("New York")
+      expect(SpellKit.correct_if_unknown("cell culture", guard: :domain)).to eq("cell culture")
+
+      # Lowercase forms should be protected
+      expect(SpellKit.correct_if_unknown("new york", guard: :domain)).to eq("new york")
+      expect(SpellKit.correct_if_unknown("cell culture", guard: :domain)).to eq("cell culture")
+
+      # Normalized forms (whitespace stripped) should ALSO be protected
+      expect(SpellKit.correct_if_unknown("newyork", guard: :domain)).to eq("newyork")
+      expect(SpellKit.correct_if_unknown("NewYork", guard: :domain)).to eq("NewYork")
+      expect(SpellKit.correct_if_unknown("cellculture", guard: :domain)).to eq("cellculture")
+      expect(SpellKit.correct_if_unknown("CellCulture", guard: :domain)).to eq("CellCulture")
+
+      protected_with_spaces.unlink
+    end
+
+    it "protects terms with punctuation in all forms" do
+      protected_with_punct = Tempfile.new(["protected_punct", ".txt"])
+      protected_with_punct.write("IL-6\n")
+      protected_with_punct.write("p-value\n")
+      protected_with_punct.close
+
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_with_punct.path,
+        edit_distance: 2
+      )
+
+      # Literal forms
+      expect(SpellKit.correct_if_unknown("IL-6", guard: :domain)).to eq("IL-6")
+      expect(SpellKit.correct_if_unknown("p-value", guard: :domain)).to eq("p-value")
+
+      # Lowercase forms (punctuation preserved)
+      expect(SpellKit.correct_if_unknown("il-6", guard: :domain)).to eq("il-6")
+      expect(SpellKit.correct_if_unknown("p-value", guard: :domain)).to eq("p-value")
+
+      # Note: normalize_word doesn't strip punctuation, only whitespace
+      # So IL-6 normalizes to "il-6" (with dash), not "il6"
+
+      protected_with_punct.unlink
+    end
+
+    it "handles terms with mixed whitespace and punctuation" do
+      protected_mixed = Tempfile.new(["protected_mixed", ".txt"])
+      protected_mixed.write("New York, NY\n")
+      protected_mixed.write("Smith, J.\n")
+      protected_mixed.close
+
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_mixed.path,
+        edit_distance: 2
+      )
+
+      # Literal forms
+      expect(SpellKit.correct_if_unknown("New York, NY", guard: :domain)).to eq("New York, NY")
+      expect(SpellKit.correct_if_unknown("Smith, J.", guard: :domain)).to eq("Smith, J.")
+
+      # Normalized forms (whitespace stripped, punctuation preserved)
+      expect(SpellKit.correct_if_unknown("newyork,ny", guard: :domain)).to eq("newyork,ny")
+      expect(SpellKit.correct_if_unknown("smith,j.", guard: :domain)).to eq("smith,j.")
+
+      protected_mixed.unlink
+    end
+
+    it "doesn't duplicate entries in the HashSet" do
+      # Terms that normalize to the same thing shouldn't cause issues
+      protected_dups = Tempfile.new(["protected_dups", ".txt"])
+      protected_dups.write("test\n")
+      protected_dups.write("TEST\n")  # Same when lowercased
+      protected_dups.write("hello\n")
+      protected_dups.close
+
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_dups.path,
+        edit_distance: 2
+      )
+
+      # All forms should work (HashSet handles duplicates)
+      expect(SpellKit.correct_if_unknown("test", guard: :domain)).to eq("test")
+      expect(SpellKit.correct_if_unknown("TEST", guard: :domain)).to eq("TEST")
+      expect(SpellKit.correct_if_unknown("Test", guard: :domain)).to eq("Test")
+      expect(SpellKit.correct_if_unknown("hello", guard: :domain)).to eq("hello")
+      expect(SpellKit.correct_if_unknown("HELLO", guard: :domain)).to eq("HELLO")
+
+      protected_dups.unlink
+    end
+
+    it "works with protected_patterns alongside protected terms" do
+      protected_mixed_guards = Tempfile.new(["protected_both", ".txt"])
+      protected_mixed_guards.write("New York\n")
+      protected_mixed_guards.close
+
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_mixed_guards.path,
+        protected_patterns: [/^IL-?\d+$/i],
+        edit_distance: 2
+      )
+
+      # Protected file terms (all variants)
+      expect(SpellKit.correct_if_unknown("New York", guard: :domain)).to eq("New York")
+      expect(SpellKit.correct_if_unknown("newyork", guard: :domain)).to eq("newyork")
+
+      # Protected pattern matches
+      expect(SpellKit.correct_if_unknown("IL6", guard: :domain)).to eq("IL6")
+      expect(SpellKit.correct_if_unknown("IL-6", guard: :domain)).to eq("IL-6")
+      expect(SpellKit.correct_if_unknown("il6", guard: :domain)).to eq("il6")
+
+      protected_mixed_guards.unlink
     end
   end
 end

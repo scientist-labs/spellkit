@@ -1,5 +1,6 @@
 use hashbrown::HashSet;
 use regex::{Regex, RegexBuilder};
+use crate::symspell::SymSpell;
 
 #[derive(Debug, Clone)]
 pub struct Guards {
@@ -19,8 +20,14 @@ impl Guards {
         for line in content.lines() {
             let trimmed = line.trim();
             if !trimmed.is_empty() && !trimmed.starts_with('#') {
+                // Store literal form
                 self.protected_set.insert(trimmed.to_string());
+                // Store lowercase form
                 self.protected_set.insert(trimmed.to_lowercase());
+                // Store normalized form (strips whitespace, converts to lowercase)
+                // This ensures variants like "newyork" are protected if "New York" is in the list
+                let normalized = SymSpell::normalize_word(trimmed);
+                self.protected_set.insert(normalized);
             }
         }
     }
