@@ -130,6 +130,11 @@ impl SymSpell {
         deletes
     }
 
+    pub fn contains(&self, word: &str) -> bool {
+        let normalized = Self::normalize_word(word);
+        self.words.contains_key(&normalized)
+    }
+
     pub fn suggest(&self, word: &str, max_suggestions: usize) -> Vec<Suggestion> {
         let normalized = Self::normalize_word(word);
         let mut suggestions = Vec::new();

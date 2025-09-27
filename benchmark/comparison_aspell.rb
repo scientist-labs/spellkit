@@ -88,8 +88,7 @@ Benchmark.ips do |x|
 
   x.report("SpellKit") do
     MIXED_WORDS.each do |word|
-      result = SpellKit.suggest(word, 1)
-      result.first && result.first["distance"] == 0
+      SpellKit.correct?(word)
     end
   end
 

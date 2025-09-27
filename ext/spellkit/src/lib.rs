@@ -149,6 +149,21 @@ impl Checker {
         }
     }
 
+    fn correct(&self, word: String) -> Result<bool, Error> {
+        let ruby = Ruby::get().unwrap();
+        let state = self.state.read().unwrap();
+
+        if !state.loaded {
+            return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded. Call load! first"));
+        }
+
+        if let Some(ref symspell) = state.symspell {
+            Ok(symspell.contains(&word))
+        } else {
+            Err(Error::new(ruby.exception_runtime_error(), "SymSpell not initialized"))
+        }
+    }
+
     fn correct_if_unknown(&self, word: String, use_guard: Option<bool>) -> Result<String, Error> {
         let ruby = Ruby::get().unwrap();
         let state = self.state.read().unwrap();
@@ -246,6 +261,7 @@ fn init(_ruby: &Ruby) -> Result<(), Error> {
     checker_class.define_singleton_method("new", function!(Checker::new, 0))?;
     checker_class.define_method("load!", method!(Checker::load_full, 1))?;
     checker_class.define_method("suggest", method!(Checker::suggest, 2))?;
+    checker_class.define_method("correct?", method!(Checker::correct, 1))?;
     checker_class.define_method("correct_if_unknown", method!(Checker::correct_if_unknown, 2))?;
     checker_class.define_method("correct_tokens", method!(Checker::correct_tokens, 2))?;
     checker_class.define_method("stats", method!(Checker::stats, 0))?;
