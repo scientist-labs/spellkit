@@ -222,20 +222,59 @@ class SpellKit::Checker
     # Return cached file if it exists
     return cache_file if File.exist?(cache_file)
 
-    # Download dictionary
-    uri = URI.parse(url)
-    response = Net::HTTP.get_response(uri)
-
-    unless response.is_a?(Net::HTTPSuccess)
-      raise SpellKit::DownloadError, "Failed to download dictionary from #{url}: #{response.code} #{response.message}"
-    end
+    # Download dictionary with timeout and redirect handling
+    body = fetch_with_redirects(url, max_redirects: 5, open_timeout: 10, read_timeout: 30)
 
     # Write to cache
-    File.write(cache_file, response.body)
+    File.write(cache_file, body)
     cache_file
   rescue URI::InvalidURIError => e
     raise SpellKit::InvalidArgumentError, "Invalid URL: #{url} (#{e.message})"
+  rescue Timeout::Error => e
+    raise SpellKit::DownloadError, "Download timed out: #{url} (#{e.message})"
   rescue StandardError => e
     raise SpellKit::DownloadError, "Failed to download dictionary: #{e.message}"
+  end
+
+  def fetch_with_redirects(url, max_redirects: 5, open_timeout: 10, read_timeout: 30, redirect_count: 0)
+    raise SpellKit::DownloadError, "Too many redirects (limit: #{max_redirects})" if redirect_count >= max_redirects
+
+    uri = URI.parse(url)
+
+    # Configure HTTP client with timeouts and SSL verification
+    Net::HTTP.start(uri.host, uri.port,
+      use_ssl: uri.scheme == "https",
+      open_timeout: open_timeout,
+      read_timeout: read_timeout,
+      verify_mode: OpenSSL::SSL::VERIFY_PEER) do |http|
+      request = Net::HTTP::Get.new(uri.request_uri)
+      response = http.request(request)
+
+      case response
+      when Net::HTTPSuccess
+        response.body
+      when Net::HTTPRedirection
+        # Follow redirect
+        location = response["location"]
+        raise SpellKit::DownloadError, "Redirect missing Location header" if location.nil? || location.empty?
+
+        # Handle relative redirects
+        redirect_uri = URI.parse(location)
+        redirect_url = redirect_uri.relative? ? URI.join(url, location).to_s : location
+
+        fetch_with_redirects(redirect_url, max_redirects: max_redirects, open_timeout: open_timeout,
+          read_timeout: read_timeout, redirect_count: redirect_count + 1)
+      else
+        raise SpellKit::DownloadError, "HTTP #{response.code}: #{response.message} (#{url})"
+      end
+    end
+  rescue Net::OpenTimeout => e
+    raise Timeout::Error, "Connection timeout after #{open_timeout}s: #{url}"
+  rescue Net::ReadTimeout => e
+    raise Timeout::Error, "Read timeout after #{read_timeout}s: #{url}"
+  rescue SocketError => e
+    raise SpellKit::DownloadError, "Network error: #{e.message} (#{url})"
+  rescue OpenSSL::SSL::SSLError => e
+    raise SpellKit::DownloadError, "SSL verification failed: #{e.message} (#{url})"
   end
 end
