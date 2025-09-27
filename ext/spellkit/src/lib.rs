@@ -62,9 +62,9 @@ fn correct_word(
 
     let suggestions = symspell.suggestions(word, 5);
 
-    // If exact match exists, return original
+    // If exact match exists, return canonical form from dictionary
     if !suggestions.is_empty() && suggestions[0].distance == 0 {
-        return word.to_string();
+        return suggestions[0].term.clone();
     }
 
     // Get original word's frequency (if it exists in dictionary)
@@ -127,7 +127,7 @@ impl Checker {
         let mut symspell = SymSpell::new(edit_dist);
         let mut dictionary_size = 0;
         let mut skipped_malformed = 0;
-        let mut skipped_multiword = 0;
+        let skipped_multiword = 0;
         let mut skipped_invalid_freq = 0;
 
         use std::io::BufRead;
@@ -156,17 +156,11 @@ impl Checker {
                 continue;
             }
 
-            // Check for multi-word terms (SymSpell algorithm doesn't support phrases)
-            if term.contains(char::is_whitespace) {
-                skipped_multiword += 1;
-                continue;
-            }
-
             // Parse frequency
             match freq_str.parse::<u64>() {
                 Ok(freq) => {
                     let normalized = SymSpell::normalize_word(term);
-                    symspell.add_word(&normalized, freq);
+                    symspell.add_word(&normalized, term, freq);
                     dictionary_size += 1;
                 }
                 Err(_) => {

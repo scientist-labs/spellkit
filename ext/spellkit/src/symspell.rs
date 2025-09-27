@@ -3,6 +3,12 @@ use std::cmp::Ordering;
 use unicode_normalization::UnicodeNormalization;
 
 #[derive(Debug, Clone)]
+pub struct WordEntry {
+    pub canonical: String,
+    pub frequency: u64,
+}
+
+#[derive(Debug, Clone)]
 pub struct Suggestion {
     pub term: String,
     pub distance: usize,
@@ -44,7 +50,7 @@ impl Eq for Suggestion {}
 
 pub struct SymSpell {
     deletes: HashMap<String, HashSet<String>>,
-    words: HashMap<String, u64>,
+    words: HashMap<String, WordEntry>,
     max_edit_distance: usize,
 }
 
@@ -64,15 +70,21 @@ impl SymSpell {
             .to_lowercase()
     }
 
-    pub fn add_word(&mut self, word: &str, frequency: u64) {
-        self.words.insert(word.to_string(), frequency);
+    pub fn add_word(&mut self, normalized: &str, canonical: &str, frequency: u64) {
+        self.words.insert(
+            normalized.to_string(),
+            WordEntry {
+                canonical: canonical.to_string(),
+                frequency,
+            },
+        );
 
-        let deletes = self.get_deletes(word, self.max_edit_distance);
+        let deletes = self.get_deletes(normalized, self.max_edit_distance);
         for delete in deletes {
             self.deletes
                 .entry(delete)
                 .or_insert_with(HashSet::new)
-                .insert(word.to_string());
+                .insert(normalized.to_string());
         }
     }
 
@@ -130,7 +142,7 @@ impl SymSpell {
 
     pub fn get_frequency(&self, word: &str) -> Option<u64> {
         let normalized = Self::normalize_word(word);
-        self.words.get(&normalized).copied()
+        self.words.get(&normalized).map(|entry| entry.frequency)
     }
 
     pub fn suggestions(&self, word: &str, max_suggestions: usize) -> Vec<Suggestion> {
@@ -138,8 +150,8 @@ impl SymSpell {
         let mut suggestions = Vec::new();
         let mut seen = HashSet::new();
 
-        if let Some(&freq) = self.words.get(&normalized) {
-            suggestions.push(Suggestion::new(normalized.clone(), 0, freq));
+        if let Some(entry) = self.words.get(&normalized) {
+            suggestions.push(Suggestion::new(entry.canonical.clone(), 0, entry.frequency));
             seen.insert(normalized.clone());
         }
 
@@ -148,10 +160,10 @@ impl SymSpell {
         for delete in &input_deletes {
             // Check if this delete is itself a dictionary word (important for finding words shorter than input)
             if !seen.contains(delete) {
-                if let Some(&freq) = self.words.get(delete) {
+                if let Some(entry) = self.words.get(delete) {
                     let distance = self.edit_distance(&normalized, delete);
                     if distance <= self.max_edit_distance {
-                        suggestions.push(Suggestion::new(delete.clone(), distance, freq));
+                        suggestions.push(Suggestion::new(entry.canonical.clone(), distance, entry.frequency));
                         seen.insert(delete.clone());
                     }
                 }
@@ -166,8 +178,8 @@ impl SymSpell {
 
                     let distance = self.edit_distance(&normalized, candidate);
                     if distance <= self.max_edit_distance {
-                        if let Some(&freq) = self.words.get(candidate) {
-                            suggestions.push(Suggestion::new(candidate.clone(), distance, freq));
+                        if let Some(entry) = self.words.get(candidate) {
+                            suggestions.push(Suggestion::new(entry.canonical.clone(), distance, entry.frequency));
                             seen.insert(candidate.clone());
                         }
                     }
@@ -183,8 +195,8 @@ impl SymSpell {
 
                 let distance = self.edit_distance(&normalized, candidate);
                 if distance <= self.max_edit_distance {
-                    if let Some(&freq) = self.words.get(candidate) {
-                        suggestions.push(Suggestion::new(candidate.clone(), distance, freq));
+                    if let Some(entry) = self.words.get(candidate) {
+                        suggestions.push(Suggestion::new(entry.canonical.clone(), distance, entry.frequency));
                         seen.insert(candidate.clone());
                     }
                 }
@@ -255,9 +267,9 @@ mod tests {
     #[test]
     fn test_suggestions() {
         let mut symspell = SymSpell::new(2);
-        symspell.add_word("hello", 1000);
-        symspell.add_word("hell", 500);
-        symspell.add_word("help", 750);
+        symspell.add_word("hello", "hello", 1000);
+        symspell.add_word("hell", "hell", 500);
+        symspell.add_word("help", "help", 750);
 
         let suggestions = symspell.suggestions("helo", 3);
         assert!(!suggestions.is_empty());

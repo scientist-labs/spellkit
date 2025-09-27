@@ -51,7 +51,7 @@ RSpec.describe "Multiple Instances" do
       symbols_suggestions = symbols_checker.suggestions("brca", 3)
 
       expect(species_suggestions.map { |s| s["term"] }).to include("mouse")
-      expect(symbols_suggestions.map { |s| s["term"] }).to include("brca1")
+      expect(symbols_suggestions.map { |s| s["term"] }).to include("BRCA1")  # Returns canonical form
     end
 
     it "maintains separate edit distances per instance" do

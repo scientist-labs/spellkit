@@ -209,10 +209,12 @@ RSpec.describe "Refactored Correction Logic" do
       # Should be identical (normalization applies to all)
       expect(batch_results).to eq(single_results)
 
-      # All should match (case-insensitive)
-      expect(batch_results[0]).to eq("HELLO")  # Exact match (normalized)
-      expect(batch_results[1]).to eq("HeLLo")  # Exact match (normalized)
-      expect(batch_results[2]).to eq("hello")  # Exact match
+      # All should return canonical form from dictionary (which is lowercase "hello")
+      expect(batch_results[0]).to eq("hello")  # Returns canonical form
+      expect(batch_results[1]).to eq("hello")  # Returns canonical form
+      expect(batch_results[2]).to eq("hello")  # Returns canonical form
+      expect(batch_results[3]).to eq("world")  # Returns canonical form
+      expect(batch_results[4]).to eq("world")  # Returns canonical form
     end
 
     it "handles single-word batch" do
