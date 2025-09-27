@@ -542,7 +542,7 @@ end
 
 ## Performance
 
-### SpellKit Standalone (M4 MacBook Pro, Ruby 3.3.0, 80k dictionary)
+### SpellKit Standalone (M4 Max MacBook Pro, Ruby 3.3.0, 80k dictionary)
 
 **Single Word Suggestions:**
 - 3,345 i/s (298.96 μs/i) with max: 1 suggestion
@@ -671,4 +671,4 @@ Bug reports and pull requests are welcome at https://github.com/scientist-labs/s
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE.txt) file for details.
