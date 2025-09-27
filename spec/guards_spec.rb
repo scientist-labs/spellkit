@@ -415,5 +415,157 @@ RSpec.describe "Guards & Domain Policies (M2)" do
 
       protected_mixed_guards.unlink
     end
+
+    it "protects normalized variants in batch operations" do
+      protected_batch = Tempfile.new(["protected_batch", ".txt"])
+      protected_batch.write("New York\n")
+      protected_batch.write("cell culture\n")
+      protected_batch.close
+
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_batch.path,
+        edit_distance: 2
+      )
+
+      # Batch with various forms
+      tokens = %w[
+        New\ York
+        newyork
+        cell\ culture
+        cellculture
+        hello
+      ]
+
+      # Replace escaped spaces with actual spaces
+      tokens = ["New York", "newyork", "cell culture", "cellculture", "hello"]
+
+      corrected = SpellKit.correct_tokens(tokens, guard: :domain)
+
+      # All protected variants should remain unchanged
+      expect(corrected[0]).to eq("New York")
+      expect(corrected[1]).to eq("newyork")
+      expect(corrected[2]).to eq("cell culture")
+      expect(corrected[3]).to eq("cellculture")
+      expect(corrected[4]).to eq("hello")  # Exact match in dictionary
+
+      protected_batch.unlink
+    end
+
+    it "handles multiple consecutive spaces in protected terms" do
+      protected_spaces = Tempfile.new(["protected_multi_space", ".txt"])
+      protected_spaces.write("New  York\n")  # Two spaces
+      protected_spaces.write("test   term\n")  # Three spaces
+      protected_spaces.close
+
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_spaces.path,
+        edit_distance: 2
+      )
+
+      # Literal forms with multiple spaces should be protected
+      expect(SpellKit.correct_if_unknown("New  York", guard: :domain)).to eq("New  York")
+      expect(SpellKit.correct_if_unknown("test   term", guard: :domain)).to eq("test   term")
+
+      # Normalized forms (all spaces stripped) should also be protected
+      expect(SpellKit.correct_if_unknown("newyork", guard: :domain)).to eq("newyork")
+      expect(SpellKit.correct_if_unknown("testterm", guard: :domain)).to eq("testterm")
+
+      # Single space versions should also be protected (lowercase form)
+      expect(SpellKit.correct_if_unknown("new york", guard: :domain)).to eq("new york")
+      expect(SpellKit.correct_if_unknown("test term", guard: :domain)).to eq("test term")
+
+      protected_spaces.unlink
+    end
+
+    it "handles tabs and mixed whitespace in protected terms" do
+      protected_tabs = Tempfile.new(["protected_tabs", ".txt"])
+      protected_tabs.write("New\tYork\n")  # Tab
+      protected_tabs.write("cell\t\tculture\n")  # Double tab
+      protected_tabs.close
+
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_tabs.path,
+        edit_distance: 2
+      )
+
+      # Literal forms should be protected
+      expect(SpellKit.correct_if_unknown("New\tYork", guard: :domain)).to eq("New\tYork")
+
+      # Normalized forms (all whitespace stripped) should be protected
+      expect(SpellKit.correct_if_unknown("newyork", guard: :domain)).to eq("newyork")
+      expect(SpellKit.correct_if_unknown("cellculture", guard: :domain)).to eq("cellculture")
+
+      protected_tabs.unlink
+    end
+
+    it "handles terms that would normalize to empty string" do
+      protected_empty = Tempfile.new(["protected_empty", ".txt"])
+      protected_empty.write("   \n")  # Just whitespace
+      protected_empty.write("hello\n")  # Valid term
+      protected_empty.close
+
+      # Should not crash or cause issues
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_empty.path,
+        edit_distance: 2
+      )
+
+      # Valid term should work
+      expect(SpellKit.correct_if_unknown("hello", guard: :domain)).to eq("hello")
+
+      protected_empty.unlink
+    end
+
+    it "preserves normalized protection after hot reload" do
+      protected_reload = Tempfile.new(["protected_reload", ".txt"])
+      protected_reload.write("New York\n")
+      protected_reload.close
+
+      # Initial load
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_reload.path,
+        edit_distance: 2
+      )
+
+      # Verify normalized form is protected
+      expect(SpellKit.correct_if_unknown("newyork", guard: :domain)).to eq("newyork")
+
+      # Hot reload
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_reload.path,
+        edit_distance: 2
+      )
+
+      # Normalized form should still be protected after reload
+      expect(SpellKit.correct_if_unknown("newyork", guard: :domain)).to eq("newyork")
+      expect(SpellKit.correct_if_unknown("New York", guard: :domain)).to eq("New York")
+
+      protected_reload.unlink
+    end
+
+    it "works correctly with edit_distance: 1 and normalized protection" do
+      protected_ed1 = Tempfile.new(["protected_ed1", ".txt"])
+      protected_ed1.write("New York\n")
+      protected_ed1.close
+
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_ed1.path,
+        edit_distance: 1  # Lower edit distance
+      )
+
+      # All variants should still be protected
+      expect(SpellKit.correct_if_unknown("New York", guard: :domain)).to eq("New York")
+      expect(SpellKit.correct_if_unknown("newyork", guard: :domain)).to eq("newyork")
+      expect(SpellKit.correct_if_unknown("NewYork", guard: :domain)).to eq("NewYork")
+
+      protected_ed1.unlink
+    end
   end
 end
