@@ -1,3 +1,5 @@
+require "tempfile"
+
 RSpec.describe SpellKit do
   let(:test_unigrams) { File.expand_path("fixtures/test_unigrams.tsv", __dir__) }
 
@@ -103,6 +105,22 @@ RSpec.describe SpellKit do
 
     it "returns original word if no good correction found" do
       expect(SpellKit.correct("zzzzzz")).to eq("zzzzzz")
+    end
+
+    it "corrects single-character words" do
+      dict = Tempfile.new(["single", ".tsv"])
+      dict.write("a\t10000\n")
+      dict.write("i\t8000\n")
+      dict.write("o\t6000\n")
+      dict.close
+
+      SpellKit.load!(dictionary: dict.path, edit_distance: 1)
+
+      # Verify single-character corrections work (was previously broken)
+      expect(SpellKit.correct("x")).to eq("a")  # Should correct to highest-frequency match
+      expect(SpellKit.suggestions("j", 5).length).to be > 0  # Should find suggestions
+
+      dict.unlink
     end
 
     describe "frequency threshold" do

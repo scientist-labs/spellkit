@@ -106,8 +106,10 @@ impl SymSpell {
                 processed.insert(item.clone());
 
                 for delete in self.generate_deletes(&item) {
-                    if delete.len() >= 1 {
-                        deletes.insert(delete.clone());
+                    deletes.insert(delete.clone());
+
+                    // Only continue processing non-empty strings to avoid infinite loops
+                    if !delete.is_empty() {
                         temp_queue.push(delete);
                     }
                 }
@@ -275,5 +277,21 @@ mod tests {
         assert!(!suggestions.is_empty());
         assert_eq!(suggestions[0].term, "hello");
         assert_eq!(suggestions[0].distance, 1);
+    }
+
+    #[test]
+    fn test_single_character_corrections() {
+        let mut symspell = SymSpell::new(1);
+        symspell.add_word("a", "a", 10000);
+        symspell.add_word("i", "I", 8000);
+        symspell.add_word("o", "o", 6000);
+
+        let suggestions = symspell.suggestions("x", 5);
+        assert!(!suggestions.is_empty(), "Single-character corrections should work");
+        assert!(suggestions.iter().any(|s| s.term == "a"), "Should suggest 'a' for 'x'");
+
+        let suggestions_for_j = symspell.suggestions("j", 5);
+        assert!(!suggestions_for_j.is_empty(), "Should find suggestions for 'j'");
+        assert!(suggestions_for_j.iter().any(|s| s.term == "I"), "Should suggest canonical 'I' (not 'i')");
     }
 }
