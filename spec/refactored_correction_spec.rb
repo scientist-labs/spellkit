@@ -131,6 +131,148 @@ RSpec.describe "Refactored Correction Logic" do
 
       expect(batch_results).to eq([])
     end
+
+    it "produces identical results with protected_patterns (regex)" do
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_patterns: [/^CDK\d+$/, /^IL-?\d+$/i],
+        edit_distance: 2
+      )
+
+      test_words = %w[helo CDK10 IL6 il-6 wrld]
+
+      # Single-word corrections with guard
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word, guard: :domain) }
+
+      # Batch corrections with guard
+      batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
+
+      # Should be identical
+      expect(batch_results).to eq(single_results)
+
+      # Verify protected terms weren't corrected
+      expect(batch_results[1]).to eq("CDK10")
+      expect(batch_results[2]).to eq("IL6")
+      expect(batch_results[3]).to eq("il-6")  # Case-insensitive pattern
+    end
+
+    it "handles mixed scenarios (corrected, protected, unchanged, unknown)" do
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_file,
+        edit_distance: 1
+      )
+
+      # Mix of different scenarios
+      test_words = %w[
+        helo
+        CDK10
+        hello
+        xyzabc
+        wrld
+        BRCA1
+        test
+        qwerty
+      ]
+
+      # Single-word corrections
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word, guard: :domain) }
+
+      # Batch corrections
+      batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
+
+      # Should be identical
+      expect(batch_results).to eq(single_results)
+
+      # Verify expected behavior
+      expect(batch_results[0]).to eq("hello")   # Corrected
+      expect(batch_results[1]).to eq("CDK10")   # Protected
+      expect(batch_results[2]).to eq("hello")   # Exact match
+      expect(batch_results[3]).to eq("xyzabc")  # Unknown (no correction)
+      expect(batch_results[4]).to eq("world")   # Corrected
+      expect(batch_results[5]).to eq("BRCA1")   # Protected
+      expect(batch_results[6]).to eq("test")    # Exact match
+      expect(batch_results[7]).to eq("qwerty")  # Unknown (no correction)
+    end
+
+    it "handles case variations identically" do
+      SpellKit.load!(dictionary: test_unigrams, edit_distance: 1)
+
+      test_words = %w[HELLO HeLLo hello WRLD world]
+
+      # Single-word corrections
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+
+      # Batch corrections
+      batch_results = SpellKit.correct_tokens(test_words)
+
+      # Should be identical (normalization applies to all)
+      expect(batch_results).to eq(single_results)
+
+      # All should match (case-insensitive)
+      expect(batch_results[0]).to eq("HELLO")  # Exact match (normalized)
+      expect(batch_results[1]).to eq("HeLLo")  # Exact match (normalized)
+      expect(batch_results[2]).to eq("hello")  # Exact match
+    end
+
+    it "handles single-word batch" do
+      SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
+
+      word = "helo"
+
+      # Single-word correction
+      single_result = SpellKit.correct_if_unknown(word)
+
+      # Batch with one word
+      batch_results = SpellKit.correct_tokens([word])
+
+      # Should be identical
+      expect(batch_results).to eq([single_result])
+      expect(batch_results.first).to eq("hello")
+    end
+
+    it "preserves token order in batch" do
+      SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
+
+      # Intentionally unordered words
+      test_words = %w[zzz helo aaa wrld mmm tst]
+
+      # Single-word corrections (maintaining order)
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+
+      # Batch corrections (should maintain order)
+      batch_results = SpellKit.correct_tokens(test_words)
+
+      # Should be identical and in same order
+      expect(batch_results).to eq(single_results)
+
+      # Verify order
+      expect(batch_results[0]).to eq("zzz")    # Unknown
+      expect(batch_results[1]).to eq("hello")  # Corrected
+      expect(batch_results[2]).to eq("aaa")    # Unknown
+      expect(batch_results[3]).to eq("world")  # Corrected
+      expect(batch_results[4]).to eq("mmm")    # Unknown
+      expect(batch_results[5]).to eq("test")   # Corrected
+    end
+
+    it "handles duplicate words in batch identically" do
+      SpellKit.load!(dictionary: test_unigrams, edit_distance: 1)
+
+      # Same word multiple times
+      test_words = %w[helo helo wrld helo wrld]
+
+      # Single-word corrections
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+
+      # Batch corrections
+      batch_results = SpellKit.correct_tokens(test_words)
+
+      # Should be identical
+      expect(batch_results).to eq(single_results)
+
+      # All "helo" should become "hello"
+      expect(batch_results).to eq(%w[hello hello world hello world])
+    end
   end
 
   describe "maintains single-lock optimization in batch mode" do
