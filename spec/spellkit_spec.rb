@@ -134,5 +134,63 @@ RSpec.describe SpellKit do
         expect(SpellKit.correct_if_unknown("incubatio")).to eq("incubation")
       end
     end
+
+    describe "edit distance" do
+      it "corrects distance-1 typos with edit_distance: 1" do
+        SpellKit.load!(dictionary: test_unigrams, edit_distance: 1)
+
+        # "helo" -> "hello" (distance 1: insert 'l')
+        expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
+        # "tst" -> "test" (distance 1: insert 'e')
+        expect(SpellKit.correct_if_unknown("tst")).to eq("test")
+      end
+
+      it "does NOT correct distance-2 typos with edit_distance: 1" do
+        SpellKit.load!(dictionary: test_unigrams, edit_distance: 1)
+
+        # "hllo" -> "hello" would be distance 1, but let's use distance 2
+        # "heo" -> "hello" (distance 2: insert 'l' twice)
+        # Since SymSpell with edit_distance: 1 won't find distance-2 matches,
+        # the word should remain unchanged
+        expect(SpellKit.correct_if_unknown("heo")).to eq("heo")
+        # "st" -> "test" (distance 2: insert 't' and 'e')
+        expect(SpellKit.correct_if_unknown("st")).to eq("st")
+      end
+
+      it "corrects distance-2 typos with edit_distance: 2" do
+        SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
+
+        # "heo" -> "hello" (distance 2: insert 'l' twice)
+        expect(SpellKit.correct_if_unknown("heo")).to eq("hello")
+        # "st" -> "test" (distance 2: insert 't' and 'e')
+        expect(SpellKit.correct_if_unknown("st")).to eq("test")
+      end
+
+      it "corrects distance-2 typos in batch with edit_distance: 2" do
+        SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
+
+        tokens = %w[heo st helo tst]
+        corrected = SpellKit.correct_tokens(tokens)
+
+        # "heo" -> "hello" (distance 2)
+        # "st" -> "test" (distance 2)
+        # "helo" -> "hello" (distance 1)
+        # "tst" -> "test" (distance 1)
+        expect(corrected).to eq(%w[hello test hello test])
+      end
+
+      it "does NOT correct distance-2 typos in batch with edit_distance: 1" do
+        SpellKit.load!(dictionary: test_unigrams, edit_distance: 1)
+
+        tokens = %w[heo st helo tst]
+        corrected = SpellKit.correct_tokens(tokens)
+
+        # "heo" -> "heo" (distance 2, not corrected)
+        # "st" -> "st" (distance 2, not corrected)
+        # "helo" -> "hello" (distance 1, corrected)
+        # "tst" -> "test" (distance 1, corrected)
+        expect(corrected).to eq(%w[heo st hello test])
+      end
+    end
   end
 end

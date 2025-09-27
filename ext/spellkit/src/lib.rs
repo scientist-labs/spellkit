@@ -217,7 +217,7 @@ impl Checker {
 
             // Find best correction with frequency threshold
             for suggestion in &suggestions {
-                if suggestion.distance <= 1 {
+                if suggestion.distance <= state.edit_distance {
                     // Apply frequency threshold
                     let passes_threshold = match original_freq {
                         // Word not in dictionary: require suggestion frequency >= absolute threshold
@@ -281,7 +281,7 @@ impl Checker {
                 // Find best correction with frequency threshold
                 let mut corrected = word.clone();
                 for suggestion in &suggestions {
-                    if suggestion.distance <= 1 {
+                    if suggestion.distance <= state.edit_distance {
                         // Apply frequency threshold
                         let passes_threshold = match original_freq {
                             None => suggestion.frequency as f64 >= state.frequency_threshold,
