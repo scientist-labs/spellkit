@@ -145,7 +145,7 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       expect(SpellKit.correct_if_unknown("BRCA1", guard: :domain)).to eq("BRCA1")
     end
 
-    it "combines multiple flags" do
+    it "combines case-insensitive + extended flags (/ix)" do
       # Test case-insensitive + extended together
       SpellKit.load!(
         dictionary: test_unigrams,
@@ -160,6 +160,52 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       expect(SpellKit.correct_if_unknown("IL6", guard: :domain)).to eq("IL6")
       expect(SpellKit.correct_if_unknown("il6", guard: :domain)).to eq("il6")
       expect(SpellKit.correct_if_unknown("Il-6", guard: :domain)).to eq("Il-6")
+    end
+
+    it "combines case-insensitive + multiline flags (/im)" do
+      # Multiline makes ^ and $ match line boundaries
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_patterns: [/^test$/im]
+      )
+
+      # Should match "test" with any case
+      expect(SpellKit.correct_if_unknown("test", guard: :domain)).to eq("test")
+      expect(SpellKit.correct_if_unknown("TEST", guard: :domain)).to eq("TEST")
+      expect(SpellKit.correct_if_unknown("Test", guard: :domain)).to eq("Test")
+    end
+
+    it "combines multiline + extended flags (/mx)" do
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_patterns: [
+          /^
+            test  # The word "test"
+          $/mx    # Multiline + extended
+        ]
+      )
+
+      expect(SpellKit.correct_if_unknown("test", guard: :domain)).to eq("test")
+    end
+
+    it "combines all three flags together (/imx)" do
+      # Test all flags: case-insensitive, multiline, and extended
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_patterns: [
+          /^
+            test   # Match "test" in any case
+            (ing)? # Optional "ing" suffix
+          $/imx    # All three flags!
+        ]
+      )
+
+      # Should match regardless of case (due to /i)
+      expect(SpellKit.correct_if_unknown("test", guard: :domain)).to eq("test")
+      expect(SpellKit.correct_if_unknown("TEST", guard: :domain)).to eq("TEST")
+      expect(SpellKit.correct_if_unknown("testing", guard: :domain)).to eq("testing")
+      expect(SpellKit.correct_if_unknown("TESTING", guard: :domain)).to eq("TESTING")
+      expect(SpellKit.correct_if_unknown("Testing", guard: :domain)).to eq("Testing")
     end
 
     it "handles String patterns as case-sensitive by default" do
@@ -180,6 +226,47 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       )
       # Now lowercase should be protected
       expect(SpellKit.correct_if_unknown("il6", guard: :domain)).to eq("il6")
+    end
+
+    it "preserves pattern matching logic with case-insensitive flag" do
+      # Verify /i flag doesn't break pattern matching logic
+      # Complex pattern with character classes, quantifiers, alternation
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_patterns: [/^(CDK|BRCA|TP53)[0-9]{1,3}$/i]
+      )
+
+      # Should match any case of these gene symbols
+      expect(SpellKit.correct_if_unknown("CDK10", guard: :domain)).to eq("CDK10")
+      expect(SpellKit.correct_if_unknown("cdk10", guard: :domain)).to eq("cdk10")
+      expect(SpellKit.correct_if_unknown("Cdk10", guard: :domain)).to eq("Cdk10")
+      expect(SpellKit.correct_if_unknown("BRCA1", guard: :domain)).to eq("BRCA1")
+      expect(SpellKit.correct_if_unknown("brca1", guard: :domain)).to eq("brca1")
+      expect(SpellKit.correct_if_unknown("TP538", guard: :domain)).to eq("TP538")
+      expect(SpellKit.correct_if_unknown("tp538", guard: :domain)).to eq("tp538")
+
+      # But NOT match different patterns
+      result = SpellKit.correct_if_unknown("XYZ999", guard: :domain)
+      expect(result).to eq("XYZ999")  # No dictionary match, stays unchanged but NOT protected
+    end
+
+    it "flags work correctly with multiple patterns" do
+      # Test that different patterns with different flags coexist correctly
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_patterns: [
+          /^CDK\d+$/,    # Case-sensitive
+          /^IL-?\d+$/i   # Case-insensitive
+        ]
+      )
+
+      # CDK pattern: only uppercase protected
+      expect(SpellKit.correct_if_unknown("CDK10", guard: :domain)).to eq("CDK10")
+
+      # IL pattern: all cases protected
+      expect(SpellKit.correct_if_unknown("IL6", guard: :domain)).to eq("IL6")
+      expect(SpellKit.correct_if_unknown("il6", guard: :domain)).to eq("il6")
+      expect(SpellKit.correct_if_unknown("Il-6", guard: :domain)).to eq("Il-6")
     end
   end
 end
