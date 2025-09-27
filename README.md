@@ -67,12 +67,12 @@ puts SpellKit.correct?("hello")
 # => true
 
 # Get suggestions for a misspelled word
-suggestions = SpellKit.suggest("helo", 5)
+suggestions = SpellKit.suggestions("helo", 5)
 puts suggestions.inspect
 # => [{"term"=>"hello", "distance"=>1, "freq"=>...}]
 
 # Correct a typo
-corrected = SpellKit.correct_if_unknown("helo")
+corrected = SpellKit.correct("helo")
 puts corrected
 # => "hello"
 
@@ -105,11 +105,11 @@ SpellKit.correct?("hello")
 # => true
 
 # Get suggestions
-SpellKit.suggest("lyssis", 5)
+SpellKit.suggestions("lyssis", 5)
 # => [{"term"=>"lysis", "distance"=>1, "freq"=>2000}, ...]
 
 # Correct a typo
-SpellKit.correct_if_unknown("helo")
+SpellKit.correct("helo")
 # => "hello"
 
 # Batch correction
@@ -147,7 +147,7 @@ SpellKit.load!(
 )
 
 # Use guard: :domain to enable protection
-SpellKit.correct_if_unknown("CDK10", guard: :domain)
+SpellKit.correct("CDK10", guard: :domain)
 # => "CDK10"  # protected, never changed
 
 # Batch correction with guards
@@ -175,8 +175,8 @@ legal_checker.load!(
 )
 
 # Use them independently
-medical_checker.suggest("lyssis", 5)
-legal_checker.suggest("contractt", 5)
+medical_checker.suggestions("lyssis", 5)
+legal_checker.suggestions("contractt", 5)
 
 # Each maintains its own state
 medical_checker.stats  # Shows medical dictionary stats
@@ -197,7 +197,7 @@ SpellKit.configure do |config|
 end
 
 # This becomes the default instance
-SpellKit.suggest("word", 5)  # Uses configured dictionary
+SpellKit.suggestions("word", 5)  # Uses configured dictionary
 ```
 
 ## Dictionary Format
@@ -266,13 +266,20 @@ SpellKit.load!(
   protected_path: "models/protected.txt",            # optional
   protected_patterns: [/^[A-Z]{3,4}\d+$/],           # optional
   edit_distance: 1,                                  # 1 (default) or 2
-  frequency_threshold: 10.0                          # default: 10.0 (minimum frequency for corrections)
+  frequency_threshold: 10.0,                         # default: 10.0 (minimum frequency for corrections)
+
+  # Skip pattern filters (all default to false)
+  skip_urls: true,                                   # Skip URLs (http://, https://, www.)
+  skip_emails: true,                                 # Skip email addresses
+  skip_hostnames: true,                              # Skip hostnames (example.com)
+  skip_code_patterns: true,                          # Skip code identifiers (camelCase, snake_case, etc.)
+  skip_numbers: true                                 # Skip numeric patterns (versions, IDs, measurements)
 )
 ```
 
 ### Frequency Threshold
 
-The `frequency_threshold` parameter controls which corrections are accepted by `correct_if_unknown` and `correct_tokens`:
+The `frequency_threshold` parameter controls which corrections are accepted by `correct` and `correct_tokens`:
 
 - **For misspelled words** (not in dictionary): Only suggest corrections with frequency ≥ `frequency_threshold`
 - **For dictionary words**: Only suggest alternatives with frequency ≥ `frequency_threshold × original_frequency`
@@ -283,12 +290,70 @@ This prevents suggesting rare words as corrections for common typos.
 ```ruby
 # With default threshold (10.0), suggest any correction with freq ≥ 10
 SpellKit.load!(dictionary: "dict.tsv")
-SpellKit.correct_if_unknown("helo")  # => "hello" (if freq ≥ 10)
+SpellKit.correct("helo")  # => "hello" (if freq ≥ 10)
 
 # With high threshold (1000.0), only suggest common corrections
 SpellKit.load!(dictionary: "dict.tsv", frequency_threshold: 1000.0)
-SpellKit.correct_if_unknown("helo")      # => "hello" (if freq ≥ 1000)
-SpellKit.correct_if_unknown("rarword")   # => "rarword" (no correction if freq < 1000)
+SpellKit.correct("helo")      # => "hello" (if freq ≥ 1000)
+SpellKit.correct("rarword")   # => "rarword" (no correction if freq < 1000)
+```
+
+### Skip Patterns
+
+SpellKit can automatically skip certain patterns to avoid "correcting" technical terms, URLs, and other special content. Inspired by Aspell's filter modes, these patterns are applied when `guard: :domain` is enabled.
+
+**Available skip patterns:**
+
+```ruby
+SpellKit.load!(
+  dictionary: "dict.tsv",
+  skip_urls: true,           # Skip URLs: https://example.com, www.example.com
+  skip_emails: true,         # Skip emails: user@domain.com, admin+tag@example.com
+  skip_hostnames: true,      # Skip hostnames: example.com, api.example.com
+  skip_code_patterns: true,  # Skip code: camelCase, snake_case, PascalCase, dotted.paths
+  skip_numbers: true         # Skip numbers: 1.2.3, #123, 5kg, 100mb
+)
+
+# With skip patterns enabled, technical content is preserved
+SpellKit.correct("https://example.com", guard: :domain)  # => "https://example.com"
+SpellKit.correct("user@test.com", guard: :domain)        # => "user@test.com"
+SpellKit.correct("getElementById", guard: :domain)       # => "getElementById"
+SpellKit.correct("version-1.2.3", guard: :domain)        # => "version-1.2.3"
+
+# Regular typos are still corrected
+SpellKit.correct("helo", guard: :domain)                 # => "hello"
+```
+
+**What each skip pattern matches:**
+
+- **`skip_urls`**: `http://`, `https://`, `www.` URLs
+- **`skip_emails`**: Email addresses with standard formats including `+` and `.` in usernames
+- **`skip_hostnames`**: Domain names like `example.com`, `api.example.co.uk`
+- **`skip_code_patterns`**:
+  - `camelCase` (starts lowercase)
+  - `PascalCase` (starts uppercase, mixed case)
+  - `snake_case` and `SCREAMING_SNAKE_CASE`
+  - `dotted.paths` like `Array.map` or `config.yml`
+- **`skip_numbers`**:
+  - Version numbers: `1.0`, `2.5.3`, `10.15.7.1`
+  - Hash/IDs: `#123`, `#4567`
+  - Measurements: `5kg`, `2.5m`, `100mb`, `16px`
+  - Words starting with digits: `5test`, `123abc`
+
+**Combining with protected_patterns:**
+
+Skip patterns work alongside your custom `protected_patterns`:
+
+```ruby
+SpellKit.load!(
+  dictionary: "dict.tsv",
+  skip_urls: true,                      # Built-in URL skipping
+  protected_patterns: [/^CUSTOM-\d+$/]  # Your custom patterns
+)
+
+# Both work together
+SpellKit.correct("https://example.com", guard: :domain)  # => "https://example.com" (skip_urls)
+SpellKit.correct("CUSTOM-123", guard: :domain)           # => "CUSTOM-123" (custom pattern)
 ```
 
 ## API Reference
@@ -303,11 +368,23 @@ Load or reload dictionaries. Thread-safe atomic swap. Accepts URLs (auto-downloa
 - `protected_patterns:` (optional) - Array of Regexp or String patterns to protect
 - `edit_distance:` (default: 1) - Maximum edit distance (1 or 2)
 - `frequency_threshold:` (default: 10.0) - Minimum frequency ratio for corrections
+- `skip_urls:` (default: false) - Skip URLs (http://, https://, www.)
+- `skip_emails:` (default: false) - Skip email addresses
+- `skip_hostnames:` (default: false) - Skip hostnames (example.com)
+- `skip_code_patterns:` (default: false) - Skip code identifiers (camelCase, snake_case, etc.)
+- `skip_numbers:` (default: false) - Skip numeric patterns (versions, IDs, measurements)
 
 **Examples:**
 ```ruby
 # From URL (recommended for getting started)
 SpellKit.load!(dictionary: SpellKit::DEFAULT_DICTIONARY_URL)
+
+# With skip patterns for technical content
+SpellKit.load!(
+  dictionary: SpellKit::DEFAULT_DICTIONARY_URL,
+  skip_urls: true,
+  skip_code_patterns: true
+)
 
 # From custom URL
 SpellKit.load!(dictionary: "https://example.com/dict.tsv")
@@ -333,7 +410,7 @@ SpellKit.correct?("hello")  # => true
 SpellKit.correct?("helo")   # => false
 ```
 
-### `SpellKit.suggest(word, max = 5)`
+### `SpellKit.suggestions(word, max = 5)`
 
 Get ranked suggestions for a word.
 
@@ -343,17 +420,32 @@ Get ranked suggestions for a word.
 
 **Returns:** Array of hashes with `"term"`, `"distance"`, and `"freq"` keys
 
-### `SpellKit.correct_if_unknown(word, guard:)`
+**Example:**
+```ruby
+SpellKit.suggestions("helo", 5)
+# => [{"term"=>"hello", "distance"=>1, "freq"=>10000}, ...]
+```
+
+### `SpellKit.correct(word, guard:)`
 
 Return corrected word or original if no better match found. Respects `frequency_threshold` configuration.
 
-**Options:**
-- `guard:` - Set to `:domain` to enable protection checks
+**Parameters:**
+- `word` (required) - The word to correct
+- `guard:` (optional) - Set to `:domain` to enable protection checks
 
 **Behavior:**
 - Returns original word if it exists in dictionary
 - For misspellings, only accepts corrections with frequency ≥ `frequency_threshold`
 - Returns original word if no corrections pass the threshold
+- When `guard: :domain` is set, protected terms and skip patterns are applied
+
+**Example:**
+```ruby
+SpellKit.correct("helo")                    # => "hello"
+SpellKit.correct("hello")                   # => "hello" (already correct)
+SpellKit.correct("CDK10", guard: :domain)   # => "CDK10" (protected)
+```
 
 ### `SpellKit.correct_tokens(tokens, guard:)`
 
@@ -459,7 +551,7 @@ end
 - 16,370 i/s (61.09 μs/i) with max: 10 suggestions
 
 **Correction Performance:**
-- `correct_if_unknown`: 7,348 i/s (136.09 μs/i)
+- `correct`: 7,348 i/s (136.09 μs/i)
 - `correct_tokens` (batch): 8,235 i/s (121.43 μs/i)
 - `correct?` (boolean check): 59,217 i/s (16.89 μs/i)
 
