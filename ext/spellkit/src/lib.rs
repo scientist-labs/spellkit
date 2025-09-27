@@ -176,9 +176,10 @@ impl Checker {
         // Load optional protected terms file
         if let Some(protected_path) = config.get("protected_path") {
             let path: String = TryConvert::try_convert(protected_path)?;
-            if let Ok(content) = std::fs::read_to_string(path) {
-                guards.load_protected(&content);
-            }
+            let content = std::fs::read_to_string(&path)
+                .map_err(|e| Error::new(ruby.exception_runtime_error(),
+                    format!("Failed to read protected terms file '{}': {}", path, e)))?;
+            guards.load_protected(&content);
         }
 
         // Load optional protected patterns

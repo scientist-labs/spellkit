@@ -568,4 +568,59 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       protected_ed1.unlink
     end
   end
+
+  describe "protected file loading errors" do
+    it "raises error when protected_path points to nonexistent file" do
+      expect {
+        SpellKit.load!(
+          dictionary: test_unigrams,
+          protected_path: "/path/that/does/not/exist.txt"
+        )
+      }.to raise_error(RuntimeError, /Failed to read protected terms file/)
+    end
+
+    it "raises error when protected_path points to unreadable file" do
+      unreadable_file = Tempfile.new("unreadable")
+      unreadable_file.write("CDK10\n")
+      unreadable_file.close
+      File.chmod(0000, unreadable_file.path)
+
+      begin
+        expect {
+          SpellKit.load!(
+            dictionary: test_unigrams,
+            protected_path: unreadable_file.path
+          )
+        }.to raise_error(RuntimeError, /Failed to read protected terms file/)
+      ensure
+        File.chmod(0644, unreadable_file.path)
+        unreadable_file.unlink
+      end
+    end
+
+    it "includes the file path in the error message" do
+      nonexistent_path = "/tmp/definitely_does_not_exist_#{rand(100000)}.txt"
+      expect {
+        SpellKit.load!(
+          dictionary: test_unigrams,
+          protected_path: nonexistent_path
+        )
+      }.to raise_error(RuntimeError, /#{Regexp.escape(nonexistent_path)}/)
+    end
+
+    it "loads successfully when protected_path is valid" do
+      expect {
+        SpellKit.load!(
+          dictionary: test_unigrams,
+          protected_path: protected_file
+        )
+      }.not_to raise_error
+    end
+
+    it "loads successfully when protected_path is not provided" do
+      expect {
+        SpellKit.load!(dictionary: test_unigrams)
+      }.not_to raise_error
+    end
+  end
 end
