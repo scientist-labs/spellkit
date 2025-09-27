@@ -32,10 +32,6 @@ impl Guards {
         }
     }
 
-    pub fn add_pattern(&mut self, pattern: &str) -> Result<(), String> {
-        self.add_pattern_with_flags(pattern, false, false, false)
-    }
-
     pub fn add_pattern_with_flags(
         &mut self,
         pattern: &str,
