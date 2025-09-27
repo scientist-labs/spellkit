@@ -237,7 +237,7 @@ class SpellKit::Checker
   end
 
   def fetch_with_redirects(url, max_redirects: 5, open_timeout: 10, read_timeout: 30, redirect_count: 0)
-    raise SpellKit::DownloadError, "Too many redirects (limit: #{max_redirects})" if redirect_count >= max_redirects
+    raise SpellKit::DownloadError, "Too many redirects (limit: #{max_redirects})" if redirect_count > max_redirects
 
     uri = URI.parse(url)
 

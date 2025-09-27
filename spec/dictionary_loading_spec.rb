@@ -151,6 +151,27 @@ RSpec.describe "Dictionary Loading" do
         SpellKit.load!(dictionary: "https://example.com/ssl-error.txt")
       }.to raise_error(SpellKit::DownloadError, /SSL verification failed/)
     end
+
+    it "follows exactly 5 redirects before hitting limit" do
+      # Test that limit is exactly 5 (not 4 or 6)
+      stub_request(:get, "https://example.com/r0")
+        .to_return(status: 302, headers: {"Location" => "https://example.com/r1"})
+      stub_request(:get, "https://example.com/r1")
+        .to_return(status: 302, headers: {"Location" => "https://example.com/r2"})
+      stub_request(:get, "https://example.com/r2")
+        .to_return(status: 302, headers: {"Location" => "https://example.com/r3"})
+      stub_request(:get, "https://example.com/r3")
+        .to_return(status: 302, headers: {"Location" => "https://example.com/r4"})
+      stub_request(:get, "https://example.com/r4")
+        .to_return(status: 302, headers: {"Location" => "https://example.com/r5"})
+      stub_request(:get, "https://example.com/r5")
+        .to_return(status: 200, body: "test\t1000\n")
+
+      # Should succeed (5 redirects is at the limit)
+      expect {
+        SpellKit.load!(dictionary: "https://example.com/r0")
+      }.not_to raise_error
+    end
   end
 
   describe "from file path" do
