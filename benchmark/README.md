@@ -33,20 +33,6 @@ Direct comparison between SpellKit and Aspell (if installed).
 bundle exec ruby benchmark/comparison_aspell.rb
 ```
 
-### 3. Hunspell Comparison (`comparison_hunspell.rb`)
-
-Direct comparison between SpellKit and Hunspell.
-
-**Requirements:**
-- Hunspell must be installed with English dictionaries
-- macOS: `brew install hunspell && brew install hunspell-en`
-- Ubuntu: `sudo apt-get install hunspell libhunspell-dev hunspell-en-us`
-
-**Run it:**
-```bash
-bundle exec ruby benchmark/comparison_hunspell.rb
-```
-
 ## Recent Results
 
 ### SpellKit Performance (M1 MacBook Pro, Ruby 3.3.0)
@@ -83,27 +69,26 @@ bundle exec ruby benchmark/comparison_hunspell.rb
 3. **High Throughput**: Over 350k operations per second for spell checking
 4. **Scales Well**: Minimal performance difference between requesting 1 vs 10 suggestions
 
-## Running Comparisons with Other Libraries
+## Running Comparison with Aspell
 
-The comparison benchmarks require external spell checking libraries to be installed:
+The Aspell comparison benchmark requires Aspell to be installed:
 
-- **Aspell**: `brew install aspell` (macOS) or `sudo apt-get install aspell libaspell-dev` (Ubuntu)
-- **Hunspell**: `brew install hunspell hunspell-en` (macOS) or `sudo apt-get install hunspell libhunspell-dev hunspell-en-us` (Ubuntu)
+- **macOS**: `brew install aspell`
+- **Ubuntu**: `sudo apt-get install aspell libaspell-dev`
 
-If these libraries are not installed, the comparison scripts will provide installation instructions and exit gracefully.
+If Aspell is not installed, the comparison script will provide installation instructions and exit gracefully.
 
 ## Dictionary Note
 
 The test dictionary used in these benchmarks is small (20 terms) for reproducibility. Real-world performance with larger dictionaries (80k+ terms) will be different but should maintain similar latency characteristics due to the SymSpell algorithm's O(1) lookup complexity.
 
-## Why Compare Different Spell Checkers?
+## Why Compare with Aspell?
 
-Different spell checking libraries use different algorithms optimized for different use cases:
+SpellKit and Aspell use different algorithms optimized for different use cases:
 
 - **SpellKit (SymSpell)**: O(1) lookup complexity, optimized for speed with large dictionaries and fuzzy matching with suggestions
 - **Aspell**: Statistical scoring with phonetic similarity, good for natural language text
-- **Hunspell**: Affix compression and complex morphological rules, excellent for languages with rich morphology
 
-All three provide **fuzzy matching and suggestions** for misspelled words, making them comparable approaches to the same problem.
+Both provide **fuzzy matching and suggestions** for misspelled words, making them comparable approaches to the same problem.
 
 Choose the tool that best fits your use case!
