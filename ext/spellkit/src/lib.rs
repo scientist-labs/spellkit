@@ -44,6 +44,55 @@ impl CheckerState {
     }
 }
 
+// Helper function to correct a single word
+// Returns the corrected word or the original if no correction is appropriate
+fn correct_word(
+    state: &CheckerState,
+    symspell: &SymSpell,
+    word: &str,
+    use_guard: bool,
+) -> String {
+    // Check if word is protected
+    if use_guard {
+        let normalized = SymSpell::normalize_word(word);
+        if state.guards.is_protected_normalized(word, &normalized) {
+            return word.to_string();
+        }
+    }
+
+    let suggestions = symspell.suggest(word, 5);
+
+    // If exact match exists, return original
+    if !suggestions.is_empty() && suggestions[0].distance == 0 {
+        return word.to_string();
+    }
+
+    // Get original word's frequency (if it exists in dictionary)
+    let original_freq = symspell.get_frequency(word);
+
+    // Find best correction with frequency threshold
+    for suggestion in &suggestions {
+        if suggestion.distance <= state.edit_distance {
+            // Apply frequency threshold
+            let passes_threshold = match original_freq {
+                // Word not in dictionary: require suggestion frequency >= absolute threshold
+                None => suggestion.frequency as f64 >= state.frequency_threshold,
+                // Word in dictionary: require suggestion frequency >= threshold * original frequency
+                Some(orig_freq) => {
+                    suggestion.frequency as f64 >= state.frequency_threshold * orig_freq as f64
+                }
+            };
+
+            if passes_threshold {
+                return suggestion.term.clone();
+            }
+        }
+    }
+
+    // No suggestions passed the threshold
+    word.to_string()
+}
+
 impl Checker {
     fn new() -> Self {
         Self {
@@ -235,46 +284,8 @@ impl Checker {
             return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded. Call load! first"));
         }
 
-        // Check if word is protected
-        if use_guard.unwrap_or(false) {
-            let normalized = SymSpell::normalize_word(&word);
-            if state.guards.is_protected_normalized(&word, &normalized) {
-                return Ok(word);
-            }
-        }
-
         if let Some(ref symspell) = state.symspell {
-            let suggestions = symspell.suggest(&word, 5);
-
-            // If exact match exists, return original
-            if !suggestions.is_empty() && suggestions[0].distance == 0 {
-                return Ok(word);
-            }
-
-            // Get original word's frequency (if it exists in dictionary)
-            let original_freq = symspell.get_frequency(&word);
-
-            // Find best correction with frequency threshold
-            for suggestion in &suggestions {
-                if suggestion.distance <= state.edit_distance {
-                    // Apply frequency threshold
-                    let passes_threshold = match original_freq {
-                        // Word not in dictionary: require suggestion frequency >= absolute threshold
-                        None => suggestion.frequency as f64 >= state.frequency_threshold,
-                        // Word in dictionary: require suggestion frequency >= threshold * original frequency
-                        Some(orig_freq) => {
-                            suggestion.frequency as f64 >= state.frequency_threshold * orig_freq as f64
-                        }
-                    };
-
-                    if passes_threshold {
-                        return Ok(suggestion.term.clone());
-                    }
-                }
-            }
-
-            // No suggestions passed the threshold
-            Ok(word)
+            Ok(correct_word(&state, symspell, &word, use_guard.unwrap_or(false)))
         } else {
             Err(Error::new(ruby.exception_runtime_error(), "SymSpell not initialized"))
         }
@@ -296,46 +307,7 @@ impl Checker {
         if let Some(ref symspell) = state.symspell {
             for token in tokens.into_iter() {
                 let word: String = TryConvert::try_convert(token)?;
-
-                // Check if word is protected
-                if use_guard {
-                    let normalized = SymSpell::normalize_word(&word);
-                    if state.guards.is_protected_normalized(&word, &normalized) {
-                        result.push(word)?;
-                        continue;
-                    }
-                }
-
-                let suggestions = symspell.suggest(&word, 5);
-
-                // If exact match exists, keep original
-                if !suggestions.is_empty() && suggestions[0].distance == 0 {
-                    result.push(word)?;
-                    continue;
-                }
-
-                // Get original word's frequency (if it exists in dictionary)
-                let original_freq = symspell.get_frequency(&word);
-
-                // Find best correction with frequency threshold
-                let mut corrected = word.clone();
-                for suggestion in &suggestions {
-                    if suggestion.distance <= state.edit_distance {
-                        // Apply frequency threshold
-                        let passes_threshold = match original_freq {
-                            None => suggestion.frequency as f64 >= state.frequency_threshold,
-                            Some(orig_freq) => {
-                                suggestion.frequency as f64 >= state.frequency_threshold * orig_freq as f64
-                            }
-                        };
-
-                        if passes_threshold {
-                            corrected = suggestion.term.clone();
-                            break;
-                        }
-                    }
-                }
-
+                let corrected = correct_word(&state, symspell, &word, use_guard);
                 result.push(corrected)?;
             }
 

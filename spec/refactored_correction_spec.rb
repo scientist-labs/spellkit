@@ -1,0 +1,162 @@
+RSpec.describe "Refactored Correction Logic" do
+  let(:test_unigrams) { File.expand_path("fixtures/test_unigrams.tsv", __dir__) }
+  let(:protected_file) { File.expand_path("fixtures/protected.txt", __dir__) }
+
+  describe "single-word and batch corrections behave identically" do
+    it "produces identical results without guards" do
+      SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
+
+      test_words = %w[helo wrld tst heo st incubatio buffers]
+
+      # Single-word corrections
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+
+      # Batch corrections
+      batch_results = SpellKit.correct_tokens(test_words)
+
+      # Should be identical
+      expect(batch_results).to eq(single_results)
+    end
+
+    it "produces identical results with guards enabled" do
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_file,
+        edit_distance: 2
+      )
+
+      test_words = %w[helo CDK10 BRCA1 wrld rat lyssis]
+
+      # Single-word corrections with guard
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word, guard: :domain) }
+
+      # Batch corrections with guard
+      batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
+
+      # Should be identical
+      expect(batch_results).to eq(single_results)
+    end
+
+    it "produces identical results with frequency threshold" do
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        edit_distance: 2,
+        frequency_threshold: 1000.0
+      )
+
+      test_words = %w[helo incubatio tst heo]
+
+      # Single-word corrections
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+
+      # Batch corrections
+      batch_results = SpellKit.correct_tokens(test_words)
+
+      # Should be identical
+      expect(batch_results).to eq(single_results)
+    end
+
+    it "produces identical results with edit_distance: 1" do
+      SpellKit.load!(dictionary: test_unigrams, edit_distance: 1)
+
+      test_words = %w[helo heo st tst]
+
+      # Single-word corrections
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+
+      # Batch corrections
+      batch_results = SpellKit.correct_tokens(test_words)
+
+      # Should be identical
+      expect(batch_results).to eq(single_results)
+    end
+
+    it "produces identical results with all features combined" do
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_file,
+        protected_patterns: [/^IL-?\d+$/i],
+        edit_distance: 2,
+        frequency_threshold: 100.0
+      )
+
+      test_words = %w[helo CDK10 IL6 wrld heo incubatio rat lyssis]
+
+      # Single-word corrections with guard
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word, guard: :domain) }
+
+      # Batch corrections with guard
+      batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
+
+      # Should be identical
+      expect(batch_results).to eq(single_results)
+    end
+
+    it "handles exact matches identically" do
+      SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
+
+      test_words = %w[hello world test testing]
+
+      # Single-word corrections (all exact matches)
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+
+      # Batch corrections (all exact matches)
+      batch_results = SpellKit.correct_tokens(test_words)
+
+      # All should remain unchanged
+      expect(batch_results).to eq(test_words)
+      expect(single_results).to eq(test_words)
+    end
+
+    it "handles unknown words identically" do
+      SpellKit.load!(dictionary: test_unigrams, edit_distance: 1)
+
+      test_words = %w[xyzabc qwerty zzzzzz]
+
+      # Single-word corrections (no matches)
+      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+
+      # Batch corrections (no matches)
+      batch_results = SpellKit.correct_tokens(test_words)
+
+      # All should remain unchanged (no corrections found)
+      expect(batch_results).to eq(test_words)
+      expect(single_results).to eq(test_words)
+    end
+
+    it "handles empty token array" do
+      SpellKit.load!(dictionary: test_unigrams)
+
+      batch_results = SpellKit.correct_tokens([])
+
+      expect(batch_results).to eq([])
+    end
+  end
+
+  describe "maintains single-lock optimization in batch mode" do
+    it "processes large batches efficiently" do
+      SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
+
+      # Create a large batch of tokens
+      large_batch = (%w[helo wrld tst] * 100).shuffle
+
+      # Time batch correction (should be fast with single lock)
+      start_time = Time.now
+      batch_results = SpellKit.correct_tokens(large_batch)
+      batch_time = Time.now - start_time
+
+      # Time individual corrections (will acquire lock 300 times)
+      start_time = Time.now
+      single_results = large_batch.map { |word| SpellKit.correct_if_unknown(word) }
+      single_time = Time.now - start_time
+
+      # Results should be identical
+      expect(batch_results).to eq(single_results)
+
+      # Batch should be significantly faster (not a strict assertion, just informational)
+      puts "\nBatch time: #{(batch_time * 1000).round(2)}ms"
+      puts "Single time: #{(single_time * 1000).round(2)}ms"
+      puts "Speedup: #{(single_time / batch_time).round(2)}x"
+    end
+  end
+end
