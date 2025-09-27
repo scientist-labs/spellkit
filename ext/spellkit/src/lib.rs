@@ -54,56 +54,62 @@ impl Checker {
                 .map_err(|_| Error::new(ruby.exception_arg_error(), "dictionary_path is required"))?
         )?;
 
-        let content = std::fs::read_to_string(&dictionary_path)
-            .map_err(|e| Error::new(ruby.exception_runtime_error(), format!("Failed to read dictionary file: {}", e)))?;
+        // Optional: edit distance
+        let edit_dist: usize = config.get("edit_distance")
+            .and_then(|v: Value| TryConvert::try_convert(v).ok())
+            .unwrap_or(1);
 
-    // Optional: edit distance
-    let edit_dist: usize = config.get("edit_distance")
-        .and_then(|v: Value| TryConvert::try_convert(v).ok())
-        .unwrap_or(1);
+        if edit_dist > 2 {
+            return Err(Error::new(ruby.exception_arg_error(), "edit_distance must be 1 or 2"));
+        }
 
-    if edit_dist > 2 {
-        return Err(Error::new(ruby.exception_arg_error(), "edit_distance must be 1 or 2"));
-    }
+        // Stream dictionary loading: read line-by-line and add directly to SymSpell
+        // This avoids buffering the entire file and intermediate Vec allocation
+        let file = std::fs::File::open(&dictionary_path)
+            .map_err(|e| Error::new(ruby.exception_runtime_error(), format!("Failed to open dictionary file: {}", e)))?;
 
-    let mut words = Vec::new();
-    for line in content.lines() {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() == 2 {
-            if let Ok(freq) = parts[1].parse::<u64>() {
-                words.push((parts[0].to_string(), freq));
+        let reader = std::io::BufReader::new(file);
+        let mut symspell = SymSpell::new(edit_dist);
+        let mut dictionary_size = 0;
+
+        use std::io::BufRead;
+        for line in reader.lines() {
+            let line = line.map_err(|e| Error::new(ruby.exception_runtime_error(), format!("Failed to read line: {}", e)))?;
+            let parts: Vec<&str> = line.split_whitespace().collect();
+
+            if parts.len() == 2 {
+                if let Ok(freq) = parts[1].parse::<u64>() {
+                    let normalized = SymSpell::normalize_word(parts[0]);
+                    symspell.add_word(&normalized, freq);
+                    dictionary_size += 1;
+                }
             }
         }
-    }
 
-    let dictionary_size = words.len();
-    let mut symspell = SymSpell::new(edit_dist);
-    symspell.load_dictionary(words);
+        let mut guards = Guards::new();
 
-    let mut guards = Guards::new();
-
-    // Load optional protected terms file
-    if let Some(protected_path) = config.get("protected_path") {
-        let path: String = TryConvert::try_convert(protected_path)?;
-        if let Ok(content) = std::fs::read_to_string(path) {
-            guards.load_protected(&content);
+        // Load optional protected terms file
+        if let Some(protected_path) = config.get("protected_path") {
+            let path: String = TryConvert::try_convert(protected_path)?;
+            if let Ok(content) = std::fs::read_to_string(path) {
+                guards.load_protected(&content);
+            }
         }
-    }
 
-    // Load optional protected patterns
-    if let Some(patterns_value) = config.get("protected_patterns") {
-        let patterns: RArray = TryConvert::try_convert(patterns_value)?;
-        for pattern_value in patterns.into_iter() {
-            let pattern: String = TryConvert::try_convert(pattern_value)?;
-            guards.add_pattern(&pattern)
-                .map_err(|e| Error::new(ruby.exception_arg_error(), e))?;
+        // Load optional protected patterns
+        if let Some(patterns_value) = config.get("protected_patterns") {
+            let patterns: RArray = TryConvert::try_convert(patterns_value)?;
+            for pattern_value in patterns.into_iter() {
+                let pattern: String = TryConvert::try_convert(pattern_value)?;
+                guards.add_pattern(&pattern)
+                    .map_err(|e| Error::new(ruby.exception_arg_error(), e))?;
+            }
         }
-    }
 
-    // Optional frequency threshold
-    let frequency_threshold: f64 = config.get("frequency_threshold")
-        .and_then(|v: Value| TryConvert::try_convert(v).ok())
-        .unwrap_or(10.0);
+        // Optional frequency threshold
+        let frequency_threshold: f64 = config.get("frequency_threshold")
+            .and_then(|v: Value| TryConvert::try_convert(v).ok())
+            .unwrap_or(10.0);
 
         let loaded_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)

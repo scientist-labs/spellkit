@@ -64,13 +64,6 @@ impl SymSpell {
             .to_lowercase()
     }
 
-    pub fn load_dictionary(&mut self, words: Vec<(String, u64)>) {
-        for (word, freq) in words {
-            let normalized = Self::normalize_word(&word);
-            self.add_word(&normalized, freq);
-        }
-    }
-
     pub fn add_word(&mut self, word: &str, frequency: u64) {
         self.words.insert(word.to_string(), frequency);
 
