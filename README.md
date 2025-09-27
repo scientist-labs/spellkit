@@ -67,12 +67,12 @@ puts SpellKit.correct?("hello")
 # => true
 
 # Get suggestions for a misspelled word
-suggestions = SpellKit.suggestions("helo", 5)
+suggestions = SpellKit.suggestions("helllo", 5)
 puts suggestions.inspect
 # => [{"term"=>"hello", "distance"=>1, "freq"=>...}]
 
 # Correct a typo
-corrected = SpellKit.correct("helo")
+corrected = SpellKit.correct("helllo")
 puts corrected
 # => "hello"
 
@@ -109,11 +109,11 @@ SpellKit.suggestions("lyssis", 5)
 # => [{"term"=>"lysis", "distance"=>1, "freq"=>2000}, ...]
 
 # Correct a typo
-SpellKit.correct("helo")
+SpellKit.correct("helllo")
 # => "hello"
 
 # Batch correction
-tokens = %w[helo wrld ruby]
+tokens = %w[helllo wrld ruby]
 SpellKit.correct_tokens(tokens)
 # => ["hello", "world", "ruby"]
 ```
@@ -151,7 +151,7 @@ SpellKit.correct("CDK10", guard: :domain)
 # => "CDK10"  # protected, never changed
 
 # Batch correction with guards
-tokens = %w[helo wrld ABC-123 for CDK10]
+tokens = %w[helllo wrld ABC-123 for CDK10]
 SpellKit.correct_tokens(tokens, guard: :domain)
 # => ["hello", "world", "ABC-123", "for", "CDK10"]
 ```
@@ -290,11 +290,11 @@ This prevents suggesting rare words as corrections for common typos.
 ```ruby
 # With default threshold (10.0), suggest any correction with freq ≥ 10
 SpellKit.load!(dictionary: "dict.tsv")
-SpellKit.correct("helo")  # => "hello" (if freq ≥ 10)
+SpellKit.correct("helllo")  # => "hello" (if freq ≥ 10)
 
 # With high threshold (1000.0), only suggest common corrections
 SpellKit.load!(dictionary: "dict.tsv", frequency_threshold: 1000.0)
-SpellKit.correct("helo")      # => "hello" (if freq ≥ 1000)
+SpellKit.correct("helllo")      # => "hello" (if freq ≥ 1000)
 SpellKit.correct("rarword")   # => "rarword" (no correction if freq < 1000)
 ```
 
@@ -321,7 +321,7 @@ SpellKit.correct("getElementById", guard: :domain)       # => "getElementById"
 SpellKit.correct("version-1.2.3", guard: :domain)        # => "version-1.2.3"
 
 # Regular typos are still corrected
-SpellKit.correct("helo", guard: :domain)                 # => "hello"
+SpellKit.correct("helllo", guard: :domain)               # => "hello"
 ```
 
 **What each skip pattern matches:**
@@ -407,7 +407,7 @@ Check if a word is spelled correctly (exact dictionary match).
 **Example:**
 ```ruby
 SpellKit.correct?("hello")  # => true
-SpellKit.correct?("helo")   # => false
+SpellKit.correct?("helllo")   # => false
 ```
 
 ### `SpellKit.suggestions(word, max = 5)`
@@ -422,7 +422,7 @@ Get ranked suggestions for a word.
 
 **Example:**
 ```ruby
-SpellKit.suggestions("helo", 5)
+SpellKit.suggestions("helllo", 5)
 # => [{"term"=>"hello", "distance"=>1, "freq"=>10000}, ...]
 ```
 
@@ -442,7 +442,7 @@ Return corrected word or original if no better match found. Respects `frequency_
 
 **Example:**
 ```ruby
-SpellKit.correct("helo")                    # => "hello"
+SpellKit.correct("helllo")                  # => "hello"
 SpellKit.correct("hello")                   # => "hello" (already correct)
 SpellKit.correct("CDK10", guard: :domain)   # => "CDK10" (protected)
 ```
