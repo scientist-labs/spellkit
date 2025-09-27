@@ -297,5 +297,44 @@ RSpec.describe "Dictionary Validation" do
 
       case_dict.unlink
     end
+
+    it "handles equal-frequency duplicates (first entry wins)" do
+      equal_dict = Tempfile.new(["equal", ".tsv"])
+      equal_dict.write("hello\t1000\n")
+      equal_dict.write("HELLO\t1000\n")  # Equal frequency
+      equal_dict.close
+
+      SpellKit.load!(dictionary: equal_dict.path)
+
+      suggestions = SpellKit.suggestions("hello", 1)
+      # When frequencies are equal, first entry's canonical wins
+      expect(suggestions.first["term"]).to eq("hello")
+      expect(suggestions.first["freq"]).to eq(2000)
+
+      equal_dict.unlink
+    end
+
+    it "handles multiple duplicates (3+ variants)" do
+      multi_dict = Tempfile.new(["multi", ".tsv"])
+      multi_dict.write("test\t100\n")
+      multi_dict.write("TEST\t5000\n")   # Highest
+      multi_dict.write("Test\t200\n")
+      multi_dict.write("TeSt\t50\n")
+      multi_dict.close
+
+      SpellKit.load!(dictionary: multi_dict.path)
+      stats = SpellKit.stats
+
+      # 4 entries, 1 unique normalized form, 3 duplicates
+      expect(stats["dictionary_size"]).to eq(1)
+      expect(stats["skipped_duplicates"]).to eq(3)
+
+      # Highest frequency canonical (TEST with 5000) should win
+      suggestions = SpellKit.suggestions("test", 1)
+      expect(suggestions.first["term"]).to eq("TEST")
+      expect(suggestions.first["freq"]).to eq(5350)  # 100+5000+200+50
+
+      multi_dict.unlink
+    end
   end
 end
