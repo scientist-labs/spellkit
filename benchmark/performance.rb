@@ -24,8 +24,8 @@ CORRECT_WORDS = %w[
 MIXED_WORDS = COMMON_TYPOS + CORRECT_WORDS
 
 puts "Setting up dictionary (not timed)..."
-test_dict = File.expand_path("../spec/fixtures/test_unigrams.tsv", __dir__)
-SpellKit.load!(dictionary: test_dict, edit_distance: 2)
+puts "  Loading SymSpell English 80k dictionary..."
+SpellKit.load!(dictionary: SpellKit::DEFAULT_DICTIONARY_URL, edit_distance: 2)
 stats = SpellKit.stats
 puts "  ✓ Dictionary loaded: #{stats["dictionary_size"]} terms"
 puts "  ✓ Edit distance: #{stats["edit_distance"]}"
@@ -99,7 +99,7 @@ puts
 # Reload with protected terms
 protected_file = File.expand_path("../spec/fixtures/protected.txt", __dir__)
 SpellKit.load!(
-  dictionary: test_dict,
+  dictionary: SpellKit::DEFAULT_DICTIONARY_URL,
   protected_path: protected_file,
   edit_distance: 2
 )

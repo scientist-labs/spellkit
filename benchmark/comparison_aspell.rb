@@ -40,9 +40,8 @@ puts "Setting up spell checkers (not timed)..."
 puts
 
 # 1. Setup SpellKit (Rust implementation)
-puts "Loading SpellKit dictionary..."
-spellkit_dict = File.expand_path("../spec/fixtures/test_unigrams.tsv", __dir__)
-SpellKit.load!(dictionary: spellkit_dict, edit_distance: 2)
+puts "Loading SpellKit dictionary (SymSpell 80k)..."
+SpellKit.load!(dictionary: SpellKit::DEFAULT_DICTIONARY_URL, edit_distance: 2)
 puts "  ✓ SpellKit loaded: #{SpellKit.stats["dictionary_size"]} terms"
 
 # 2. Setup Aspell

@@ -543,48 +543,34 @@ end
 
 ## Performance
 
-### SpellKit Standalone (M1 MacBook Pro, Ruby 3.3.0)
+### SpellKit Standalone (M1 MacBook Pro, Ruby 3.3.0, 80k dictionary)
 
 **Single Word Suggestions:**
-- 18,015 i/s (55.51 μs/i) with max: 1 suggestion
-- 17,415 i/s (57.42 μs/i) with max: 5 suggestions
-- 17,463 i/s (57.26 μs/i) with max: 10 suggestions
+- 3,345 i/s (298.96 μs/i) with max: 1 suggestion
+- 3,198 i/s (312.73 μs/i) with max: 5 suggestions
+- 3,073 i/s (325.45 μs/i) with max: 10 suggestions
 
 **Correction Performance:**
-- `correct`: 8,259 i/s (121.08 μs/i)
-- `correct_tokens` (batch): 8,262 i/s (121.04 μs/i)
+- `correct`: 1,858 i/s (538.17 μs/i)
+- `correct_tokens` (batch): 2,005 i/s (498.76 μs/i)
 
 **Guard Performance:**
-- Without guard: 63,932 i/s (15.64 μs/i)
-- With guard: 113,490 i/s (8.81 μs/i) - **1.78x faster!**
+- Without guard: 2,926 i/s (341.79 μs/i)
+- With guard: 9,337 i/s (107.10 μs/i) - **3.19x faster!**
   *(Guards short-circuit expensive lookups)*
 
 **Latency Distribution (10,000 iterations):**
-- p50: 3μs
-- p95: 4μs
-- p99: 22μs
-- max: 192μs
+- p50: 61μs
+- p95: 66μs
+- p99: 105μs
+- max: 298μs
 
-**Raw Throughput:** 385,713 ops/sec
-
-### Comparison with Aspell (M1 MacBook Pro, Ruby 3.3.0)
-
-SpellKit vs Aspell on identical word lists:
-
-**Spell Checking (is word correct?):**
-- SpellKit: **3.74x faster** than Aspell
-
-**Generating Suggestions:**
-- SpellKit: **40x faster** than Aspell
-
-**Latency at Scale (10,000 iterations):**
-- SpellKit p50: 3μs vs Aspell p50: 100μs (~**33x faster**)
-- SpellKit p95: 4μs vs Aspell p95: 150μs (~**37x faster**)
+**Raw Throughput:** 16,192 ops/sec
 
 ### Key Takeaways
-1. **Consistent Performance**: p95 and p99 latencies remain low (< 25μs)
-2. **Guards are Fast**: Protected term checks improve performance by avoiding dictionary lookups
-3. **High Throughput**: Over 385k operations per second
+1. **Consistent Performance**: p95 latency of 66μs with 80k dictionary, p99 at 105μs
+2. **Guards are Fast**: Protected term checks improve performance by 3.2x by avoiding dictionary lookups
+3. **High Throughput**: Over 16k operations per second with 80k word dictionary
 4. **Scales Well**: Minimal performance difference between 1 vs 10 suggestions
 
 ## Benchmarks
