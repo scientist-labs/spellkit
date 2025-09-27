@@ -542,7 +542,7 @@ end
 
 ## Performance
 
-### SpellKit Standalone (M1 MacBook Pro, Ruby 3.3.0, 80k dictionary)
+### SpellKit Standalone (M4 MacBook Pro, Ruby 3.3.0, 80k dictionary)
 
 **Single Word Suggestions:**
 - 3,345 i/s (298.96 μs/i) with max: 1 suggestion
