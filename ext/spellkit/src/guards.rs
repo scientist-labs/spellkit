@@ -1,5 +1,5 @@
 use hashbrown::HashSet;
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 
 #[derive(Debug, Clone)]
 pub struct Guards {
@@ -26,7 +26,22 @@ impl Guards {
     }
 
     pub fn add_pattern(&mut self, pattern: &str) -> Result<(), String> {
-        match Regex::new(pattern) {
+        self.add_pattern_with_flags(pattern, false, false, false)
+    }
+
+    pub fn add_pattern_with_flags(
+        &mut self,
+        pattern: &str,
+        case_insensitive: bool,
+        multiline: bool,
+        extended: bool,
+    ) -> Result<(), String> {
+        match RegexBuilder::new(pattern)
+            .case_insensitive(case_insensitive)
+            .multi_line(multiline)
+            .ignore_whitespace(extended)
+            .build()
+        {
             Ok(regex) => {
                 self.protected_patterns.push(regex);
                 Ok(())

@@ -100,8 +100,26 @@ impl Checker {
         if let Some(patterns_value) = config.get("protected_patterns") {
             let patterns: RArray = TryConvert::try_convert(patterns_value)?;
             for pattern_value in patterns.into_iter() {
-                let pattern: String = TryConvert::try_convert(pattern_value)?;
-                guards.add_pattern(&pattern)
+                let pattern_hash: RHash = TryConvert::try_convert(pattern_value)?;
+
+                let source: String = TryConvert::try_convert(
+                    pattern_hash.fetch::<_, Value>("source")
+                        .map_err(|_| Error::new(ruby.exception_arg_error(), "pattern hash missing 'source' key"))?
+                )?;
+
+                let case_insensitive: bool = pattern_hash.get("case_insensitive")
+                    .and_then(|v: Value| TryConvert::try_convert(v).ok())
+                    .unwrap_or(false);
+
+                let multiline: bool = pattern_hash.get("multiline")
+                    .and_then(|v: Value| TryConvert::try_convert(v).ok())
+                    .unwrap_or(false);
+
+                let extended: bool = pattern_hash.get("extended")
+                    .and_then(|v: Value| TryConvert::try_convert(v).ok())
+                    .unwrap_or(false);
+
+                guards.add_pattern_with_flags(&source, case_insensitive, multiline, extended)
                     .map_err(|e| Error::new(ruby.exception_arg_error(), e))?;
             }
         }

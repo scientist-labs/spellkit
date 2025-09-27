@@ -138,18 +138,31 @@ class SpellKit::Checker
 
     config["protected_path"] = protected_path.to_s if protected_path
 
-    # Convert Ruby Regex objects to strings for Rust
+    # Convert Ruby Regex objects to hashes with flags for Rust
     if protected_patterns.any?
-      pattern_strings = protected_patterns.map do |pattern|
+      pattern_objects = protected_patterns.map do |pattern|
         if pattern.is_a?(Regexp)
-          pattern.source
+          # Extract flags from Regexp.options bitmask
+          options = pattern.options
+          {
+            "source" => pattern.source,
+            "case_insensitive" => (options & Regexp::IGNORECASE) != 0,
+            "multiline" => (options & Regexp::MULTILINE) != 0,
+            "extended" => (options & Regexp::EXTENDED) != 0
+          }
         elsif pattern.is_a?(String)
-          pattern
+          # Plain strings default to case-sensitive
+          {
+            "source" => pattern,
+            "case_insensitive" => false,
+            "multiline" => false,
+            "extended" => false
+          }
         else
           raise SpellKit::InvalidArgumentError, "protected_patterns must contain Regexp or String objects"
         end
       end
-      config["protected_patterns"] = pattern_strings
+      config["protected_patterns"] = pattern_objects
     end
 
     _rust_load!(config)
