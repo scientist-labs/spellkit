@@ -218,16 +218,68 @@ impl Checker {
     }
 
     fn correct_tokens(&self, tokens: RArray, use_guard: Option<bool>) -> Result<RArray, Error> {
-        let result = RArray::new();
-        let guard = use_guard.unwrap_or(false);
+        // Optimize batch correction by acquiring lock once for all tokens
+        // instead of calling correct_if_unknown per token (which re-locks each time)
+        let ruby = Ruby::get().unwrap();
+        let state = self.state.read().unwrap();
+        let use_guard = use_guard.unwrap_or(false);
 
-        for token in tokens.into_iter() {
-            let word: String = TryConvert::try_convert(token)?;
-            let corrected = self.correct_if_unknown(word, Some(guard))?;
-            result.push(corrected)?;
+        if !state.loaded {
+            return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded. Call load! first"));
         }
 
-        Ok(result)
+        let result = RArray::new();
+
+        if let Some(ref symspell) = state.symspell {
+            for token in tokens.into_iter() {
+                let word: String = TryConvert::try_convert(token)?;
+
+                // Check if word is protected
+                if use_guard {
+                    let normalized = SymSpell::normalize_word(&word);
+                    if state.guards.is_protected_normalized(&word, &normalized) {
+                        result.push(word)?;
+                        continue;
+                    }
+                }
+
+                let suggestions = symspell.suggest(&word, 5);
+
+                // If exact match exists, keep original
+                if !suggestions.is_empty() && suggestions[0].distance == 0 {
+                    result.push(word)?;
+                    continue;
+                }
+
+                // Get original word's frequency (if it exists in dictionary)
+                let original_freq = symspell.get_frequency(&word);
+
+                // Find best correction with frequency threshold
+                let mut corrected = word.clone();
+                for suggestion in &suggestions {
+                    if suggestion.distance <= 1 {
+                        // Apply frequency threshold
+                        let passes_threshold = match original_freq {
+                            None => suggestion.frequency as f64 >= state.frequency_threshold,
+                            Some(orig_freq) => {
+                                suggestion.frequency as f64 >= state.frequency_threshold * orig_freq as f64
+                            }
+                        };
+
+                        if passes_threshold {
+                            corrected = suggestion.term.clone();
+                            break;
+                        }
+                    }
+                }
+
+                result.push(corrected)?;
+            }
+
+            Ok(result)
+        } else {
+            Err(Error::new(ruby.exception_runtime_error(), "SymSpell not initialized"))
+        }
     }
 
     fn stats(&self) -> Result<RHash, Error> {
