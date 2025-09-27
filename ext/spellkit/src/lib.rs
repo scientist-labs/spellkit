@@ -226,6 +226,15 @@ impl Checker {
             .and_then(|v: Value| TryConvert::try_convert(v).ok())
             .unwrap_or(10.0);
 
+        // Validate frequency threshold
+        if !frequency_threshold.is_finite() {
+            return Err(Error::new(ruby.exception_arg_error(), "frequency_threshold must be finite (not NaN or Infinity)"));
+        }
+
+        if frequency_threshold < 0.0 {
+            return Err(Error::new(ruby.exception_arg_error(), format!("frequency_threshold must be non-negative, got: {}", frequency_threshold)));
+        }
+
         let loaded_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .ok()

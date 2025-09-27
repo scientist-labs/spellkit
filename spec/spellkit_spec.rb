@@ -19,6 +19,36 @@ RSpec.describe SpellKit do
         SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
       }.not_to raise_error
     end
+
+    it "accepts valid frequency threshold" do
+      expect {
+        SpellKit.load!(dictionary: test_unigrams, frequency_threshold: 100.0)
+      }.not_to raise_error
+    end
+
+    it "rejects NaN frequency threshold" do
+      expect {
+        SpellKit.load!(dictionary: test_unigrams, frequency_threshold: Float::NAN)
+      }.to raise_error(SpellKit::InvalidArgumentError, /must be finite/)
+    end
+
+    it "rejects Infinity frequency threshold" do
+      expect {
+        SpellKit.load!(dictionary: test_unigrams, frequency_threshold: Float::INFINITY)
+      }.to raise_error(SpellKit::InvalidArgumentError, /must be finite/)
+    end
+
+    it "rejects negative frequency threshold" do
+      expect {
+        SpellKit.load!(dictionary: test_unigrams, frequency_threshold: -10.0)
+      }.to raise_error(SpellKit::InvalidArgumentError, /must be non-negative/)
+    end
+
+    it "rejects non-numeric frequency threshold" do
+      expect {
+        SpellKit.load!(dictionary: test_unigrams, frequency_threshold: "100")
+      }.to raise_error(SpellKit::InvalidArgumentError, /must be a number/)
+    end
   end
 
   describe ".suggestions" do

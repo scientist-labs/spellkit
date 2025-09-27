@@ -133,6 +133,19 @@ class SpellKit::Checker
       raise SpellKit::InvalidArgumentError, "protected_patterns must be an Array"
     end
 
+    # Validate frequency_threshold
+    unless frequency_threshold.is_a?(Numeric)
+      raise SpellKit::InvalidArgumentError, "frequency_threshold must be a number, got: #{frequency_threshold.class}"
+    end
+
+    unless frequency_threshold.finite?
+      raise SpellKit::InvalidArgumentError, "frequency_threshold must be finite (got NaN or Infinity)"
+    end
+
+    if frequency_threshold < 0
+      raise SpellKit::InvalidArgumentError, "frequency_threshold must be non-negative, got: #{frequency_threshold}"
+    end
+
     # Build skip patterns from convenience flags
     skip_patterns = build_skip_patterns(
       skip_urls: skip_urls,
