@@ -60,7 +60,7 @@ fn correct_word(
         }
     }
 
-    let suggestions = symspell.suggest(word, 5);
+    let suggestions = symspell.suggestions(word, 5);
 
     // If exact match exists, return original
     if !suggestions.is_empty() && suggestions[0].distance == 0 {
@@ -235,7 +235,7 @@ impl Checker {
         Ok(())
     }
 
-    fn suggest(&self, word: String, max: Option<usize>) -> Result<RArray, Error> {
+    fn suggestions(&self, word: String, max: Option<usize>) -> Result<RArray, Error> {
         let ruby = Ruby::get().unwrap();
         let max_suggestions = max.unwrap_or(5);
         let state = self.state.read().unwrap();
@@ -245,7 +245,7 @@ impl Checker {
         }
 
         if let Some(ref symspell) = state.symspell {
-            let suggestions = symspell.suggest(&word, max_suggestions);
+            let suggestions = symspell.suggestions(&word, max_suggestions);
             let result = RArray::new();
 
             for suggestion in suggestions {
@@ -364,9 +364,9 @@ fn init(_ruby: &Ruby) -> Result<(), Error> {
 
     checker_class.define_singleton_method("new", function!(Checker::new, 0))?;
     checker_class.define_method("load!", method!(Checker::load_full, 1))?;
-    checker_class.define_method("suggest", method!(Checker::suggest, 2))?;
+    checker_class.define_method("suggestions", method!(Checker::suggestions, 2))?;
     checker_class.define_method("correct?", method!(Checker::correct, 1))?;
-    checker_class.define_method("correct_if_unknown", method!(Checker::correct_if_unknown, 2))?;
+    checker_class.define_method("correct", method!(Checker::correct_if_unknown, 2))?;
     checker_class.define_method("correct_tokens", method!(Checker::correct_tokens, 2))?;
     checker_class.define_method("stats", method!(Checker::stats, 0))?;
     checker_class.define_method("healthcheck", method!(Checker::healthcheck, 0))?;

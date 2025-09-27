@@ -133,7 +133,7 @@ impl SymSpell {
         self.words.get(&normalized).copied()
     }
 
-    pub fn suggest(&self, word: &str, max_suggestions: usize) -> Vec<Suggestion> {
+    pub fn suggestions(&self, word: &str, max_suggestions: usize) -> Vec<Suggestion> {
         let normalized = Self::normalize_word(word);
         let mut suggestions = Vec::new();
         let mut seen = HashSet::new();
@@ -259,7 +259,7 @@ mod tests {
         symspell.add_word("hell", 500);
         symspell.add_word("help", 750);
 
-        let suggestions = symspell.suggest("helo", 3);
+        let suggestions = symspell.suggestions("helo", 3);
         assert!(!suggestions.is_empty());
         assert_eq!(suggestions[0].term, "hello");
         assert_eq!(suggestions[0].distance, 1);

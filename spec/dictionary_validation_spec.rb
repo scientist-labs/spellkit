@@ -53,8 +53,8 @@ RSpec.describe "Dictionary Validation" do
       expect(stats["dictionary_size"]).to eq(4)
 
       # Verify they work
-      expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
-      expect(SpellKit.correct_if_unknown("wrld")).to eq("world")
+      expect(SpellKit.correct("helo")).to eq("hello")
+      expect(SpellKit.correct("wrld")).to eq("world")
     end
 
     it "initializes skip counters to zero" do
@@ -117,7 +117,7 @@ RSpec.describe "Dictionary Validation" do
       expect(stats["dictionary_size"]).to eq(2)
 
       # Verify trimmed term works
-      expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
+      expect(SpellKit.correct("helo")).to eq("hello")
 
       whitespace_dict.unlink
     end
@@ -153,7 +153,7 @@ RSpec.describe "Dictionary Validation" do
       expect(stats["skipped_malformed"]).to eq(2)
 
       # Verify we can use the valid entry
-      expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
+      expect(SpellKit.correct("helo")).to eq("hello")
 
       empty_term_dict.unlink
     end
@@ -256,7 +256,7 @@ RSpec.describe "Dictionary Validation" do
 
       # But only 2 unique words in the actual dictionary
       # Verify hello was loaded (last entry wins with freq 3000)
-      expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
+      expect(SpellKit.correct("helo")).to eq("hello")
 
       dup_dict.unlink
     end

@@ -10,7 +10,7 @@ RSpec.describe "Dictionary Loading" do
       SpellKit.load!(dictionary: "https://example.com/dict.txt")
 
       # Verify it loaded correctly
-      suggestions = SpellKit.suggest("helo", 1)
+      suggestions = SpellKit.suggestions("helo", 1)
       expect(suggestions.first["term"]).to eq("hello")
     end
 
@@ -56,7 +56,7 @@ RSpec.describe "Dictionary Loading" do
         .to_return(status: 200, body: "test\t1000\n")
 
       SpellKit.load!(dictionary: "https://example.com/redirect1")
-      suggestions = SpellKit.suggest("test", 1)
+      suggestions = SpellKit.suggestions("test", 1)
       expect(suggestions.first["term"]).to eq("test")
     end
 
@@ -69,7 +69,7 @@ RSpec.describe "Dictionary Loading" do
         .to_return(status: 200, body: "test\t1000\n")
 
       SpellKit.load!(dictionary: "https://example.com/path/dict.txt")
-      suggestions = SpellKit.suggest("test", 1)
+      suggestions = SpellKit.suggestions("test", 1)
       expect(suggestions.first["term"]).to eq("test")
     end
 
@@ -180,7 +180,7 @@ RSpec.describe "Dictionary Loading" do
     it "loads dictionary from file path" do
       SpellKit.load!(dictionary: test_dict)
 
-      suggestions = SpellKit.suggest("helo", 1)
+      suggestions = SpellKit.suggestions("helo", 1)
       expect(suggestions.first["term"]).to eq("hello")
     end
 

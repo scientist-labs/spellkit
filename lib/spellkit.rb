@@ -67,16 +67,16 @@ module SpellKit
       @default
     end
 
-    def suggest(word, max = 5)
-      default.suggest(word, max)
+    def suggestions(word, max = 5)
+      default.suggestions(word, max)
     end
 
     def correct?(word)
       default.correct?(word)
     end
 
-    def correct_if_unknown(word, guard: nil)
-      default.correct_if_unknown(word, guard: guard)
+    def correct(word, guard: nil)
+      default.correct(word, guard: guard)
     end
 
     def correct_tokens(tokens, guard: nil)
@@ -97,9 +97,9 @@ end
 class SpellKit::Checker
   # Save original Rust methods
   alias_method :_rust_load!, :load!
-  alias_method :_rust_suggest, :suggest
+  alias_method :_rust_suggestions, :suggestions
   alias_method :_rust_correct?, :correct?
-  alias_method :_rust_correct_if_unknown, :correct_if_unknown
+  alias_method :_rust_correct, :correct
   alias_method :_rust_correct_tokens, :correct_tokens
   alias_method :_rust_stats, :stats
   alias_method :_rust_healthcheck, :healthcheck
@@ -169,11 +169,11 @@ class SpellKit::Checker
     self
   end
 
-  def suggest(word, max = 5)
+  def suggestions(word, max = 5)
     raise SpellKit::InvalidArgumentError, "word cannot be nil" if word.nil?
     raise SpellKit::InvalidArgumentError, "word cannot be empty" if word.to_s.empty?
 
-    _rust_suggest(word, max)
+    _rust_suggestions(word, max)
   end
 
   def correct?(word)
@@ -183,12 +183,12 @@ class SpellKit::Checker
     _rust_correct?(word)
   end
 
-  def correct_if_unknown(word, guard: nil)
+  def correct(word, guard: nil)
     raise SpellKit::InvalidArgumentError, "word cannot be nil" if word.nil?
     raise SpellKit::InvalidArgumentError, "word cannot be empty" if word.to_s.empty?
 
     use_guard = guard == :domain
-    _rust_correct_if_unknown(word, use_guard)
+    _rust_correct(word, use_guard)
   end
 
   def correct_tokens(tokens, guard: nil)

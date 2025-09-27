@@ -13,7 +13,7 @@ RSpec.describe "Hot Reload & Manifests (M3)" do
       SpellKit.load!(dictionary: test_unigrams)
 
       # Verify initial state
-      suggestions = SpellKit.suggest("helo", 1)
+      suggestions = SpellKit.suggestions("helo", 1)
       expect(suggestions.first["term"]).to eq("hello")
 
       # Create new dictionary with different content
@@ -23,7 +23,7 @@ RSpec.describe "Hot Reload & Manifests (M3)" do
       SpellKit.load!(dictionary: temp_unigrams)
 
       # Verify new state - "help" should now be the only suggestion
-      suggestions = SpellKit.suggest("helo", 1)
+      suggestions = SpellKit.suggestions("helo", 1)
       expect(suggestions.first["term"]).to eq("help")
       expect(suggestions.first["freq"]).to eq(50000)
     end

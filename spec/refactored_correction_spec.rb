@@ -9,7 +9,7 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[helo wrld tst heo st incubatio buffers]
 
       # Single-word corrections
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections
       batch_results = SpellKit.correct_tokens(test_words)
@@ -28,7 +28,7 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[helo CDK10 BRCA1 wrld rat lyssis]
 
       # Single-word corrections with guard
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word, guard: :domain) }
+      single_results = test_words.map { |word| SpellKit.correct(word, guard: :domain) }
 
       # Batch corrections with guard
       batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
@@ -47,7 +47,7 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[helo incubatio tst heo]
 
       # Single-word corrections
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections
       batch_results = SpellKit.correct_tokens(test_words)
@@ -62,7 +62,7 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[helo heo st tst]
 
       # Single-word corrections
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections
       batch_results = SpellKit.correct_tokens(test_words)
@@ -83,7 +83,7 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[helo CDK10 IL6 wrld heo incubatio rat lyssis]
 
       # Single-word corrections with guard
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word, guard: :domain) }
+      single_results = test_words.map { |word| SpellKit.correct(word, guard: :domain) }
 
       # Batch corrections with guard
       batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
@@ -98,7 +98,7 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[hello world test testing]
 
       # Single-word corrections (all exact matches)
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections (all exact matches)
       batch_results = SpellKit.correct_tokens(test_words)
@@ -114,7 +114,7 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[xyzabc qwerty zzzzzz]
 
       # Single-word corrections (no matches)
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections (no matches)
       batch_results = SpellKit.correct_tokens(test_words)
@@ -142,7 +142,7 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[helo CDK10 IL6 il-6 wrld]
 
       # Single-word corrections with guard
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word, guard: :domain) }
+      single_results = test_words.map { |word| SpellKit.correct(word, guard: :domain) }
 
       # Batch corrections with guard
       batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
@@ -176,7 +176,7 @@ RSpec.describe "Refactored Correction Logic" do
       ]
 
       # Single-word corrections
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word, guard: :domain) }
+      single_results = test_words.map { |word| SpellKit.correct(word, guard: :domain) }
 
       # Batch corrections
       batch_results = SpellKit.correct_tokens(test_words, guard: :domain)
@@ -201,7 +201,7 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[HELLO HeLLo hello WRLD world]
 
       # Single-word corrections
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections
       batch_results = SpellKit.correct_tokens(test_words)
@@ -221,7 +221,7 @@ RSpec.describe "Refactored Correction Logic" do
       word = "helo"
 
       # Single-word correction
-      single_result = SpellKit.correct_if_unknown(word)
+      single_result = SpellKit.correct(word)
 
       # Batch with one word
       batch_results = SpellKit.correct_tokens([word])
@@ -238,7 +238,7 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[zzz helo aaa wrld mmm tst]
 
       # Single-word corrections (maintaining order)
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections (should maintain order)
       batch_results = SpellKit.correct_tokens(test_words)
@@ -262,7 +262,7 @@ RSpec.describe "Refactored Correction Logic" do
       test_words = %w[helo helo wrld helo wrld]
 
       # Single-word corrections
-      single_results = test_words.map { |word| SpellKit.correct_if_unknown(word) }
+      single_results = test_words.map { |word| SpellKit.correct(word) }
 
       # Batch corrections
       batch_results = SpellKit.correct_tokens(test_words)
@@ -289,7 +289,7 @@ RSpec.describe "Refactored Correction Logic" do
 
       # Time individual corrections (will acquire lock 300 times)
       start_time = Time.now
-      single_results = large_batch.map { |word| SpellKit.correct_if_unknown(word) }
+      single_results = large_batch.map { |word| SpellKit.correct(word) }
       single_time = Time.now - start_time
 
       # Results should be identical

@@ -19,13 +19,13 @@ RSpec.describe SpellKit do
     end
   end
 
-  describe ".suggest" do
+  describe ".suggestions" do
     before do
       SpellKit.load!(dictionary: test_unigrams)
     end
 
     it "returns suggestions for misspelled words" do
-      suggestions = SpellKit.suggest("helo", 3)
+      suggestions = SpellKit.suggestions("helo", 3)
       expect(suggestions).to be_an(Array)
       expect(suggestions.first).to include("term", "distance", "freq")
       # "hello" comes first because it has higher frequency than "help"
@@ -35,14 +35,14 @@ RSpec.describe SpellKit do
     end
 
     it "returns exact match with distance 0" do
-      suggestions = SpellKit.suggest("hello", 1)
+      suggestions = SpellKit.suggestions("hello", 1)
       expect(suggestions.first["term"]).to eq("hello")
       expect(suggestions.first["distance"]).to eq(0)
     end
 
     it "returns empty array for words too far from dictionary" do
       SpellKit.load!(dictionary: test_unigrams, edit_distance: 1)
-      suggestions = SpellKit.suggest("zzzzzz", 5)
+      suggestions = SpellKit.suggestions("zzzzzz", 5)
       expect(suggestions).to eq([])
     end
   end
@@ -88,21 +88,21 @@ RSpec.describe SpellKit do
     end
   end
 
-  describe ".correct_if_unknown" do
+  describe ".correct" do
     before do
       SpellKit.load!(dictionary: test_unigrams)
     end
 
     it "corrects misspelled words" do
-      expect(SpellKit.correct_if_unknown("lyssis")).to eq("lysis")
+      expect(SpellKit.correct("lyssis")).to eq("lysis")
     end
 
     it "preserves correctly spelled words" do
-      expect(SpellKit.correct_if_unknown("hello")).to eq("hello")
+      expect(SpellKit.correct("hello")).to eq("hello")
     end
 
     it "returns original word if no good correction found" do
-      expect(SpellKit.correct_if_unknown("zzzzzz")).to eq("zzzzzz")
+      expect(SpellKit.correct("zzzzzz")).to eq("zzzzzz")
     end
 
     describe "frequency threshold" do
@@ -113,7 +113,7 @@ RSpec.describe SpellKit do
 
         # "incubatio" -> "incubation" (distance 1, freq 600)
         # Should NOT correct because 600 < 1000
-        expect(SpellKit.correct_if_unknown("incubatio")).to eq("incubatio")
+        expect(SpellKit.correct("incubatio")).to eq("incubatio")
       end
 
       it "accepts corrections above absolute frequency threshold" do
@@ -123,15 +123,15 @@ RSpec.describe SpellKit do
 
         # "helo" -> "hello" (distance 1, freq 10000)
         # Should correct because 10000 >= 1000
-        expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
+        expect(SpellKit.correct("helo")).to eq("hello")
       end
 
       it "uses default threshold of 10.0" do
         SpellKit.load!(dictionary: test_unigrams)
 
         # All words in test dictionary have freq >= 10, so corrections should work
-        expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
-        expect(SpellKit.correct_if_unknown("incubatio")).to eq("incubation")
+        expect(SpellKit.correct("helo")).to eq("hello")
+        expect(SpellKit.correct("incubatio")).to eq("incubation")
       end
     end
 
@@ -140,9 +140,9 @@ RSpec.describe SpellKit do
         SpellKit.load!(dictionary: test_unigrams, edit_distance: 1)
 
         # "helo" -> "hello" (distance 1: insert 'l')
-        expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
+        expect(SpellKit.correct("helo")).to eq("hello")
         # "tst" -> "test" (distance 1: insert 'e')
-        expect(SpellKit.correct_if_unknown("tst")).to eq("test")
+        expect(SpellKit.correct("tst")).to eq("test")
       end
 
       it "does NOT correct distance-2 typos with edit_distance: 1" do
@@ -152,18 +152,18 @@ RSpec.describe SpellKit do
         # "heo" -> "hello" (distance 2: insert 'l' twice)
         # Since SymSpell with edit_distance: 1 won't find distance-2 matches,
         # the word should remain unchanged
-        expect(SpellKit.correct_if_unknown("heo")).to eq("heo")
+        expect(SpellKit.correct("heo")).to eq("heo")
         # "st" -> "test" (distance 2: insert 't' and 'e')
-        expect(SpellKit.correct_if_unknown("st")).to eq("st")
+        expect(SpellKit.correct("st")).to eq("st")
       end
 
       it "corrects distance-2 typos with edit_distance: 2" do
         SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
 
         # "heo" -> "hello" (distance 2: insert 'l' twice)
-        expect(SpellKit.correct_if_unknown("heo")).to eq("hello")
+        expect(SpellKit.correct("heo")).to eq("hello")
         # "st" -> "test" (distance 2: insert 't' and 'e')
-        expect(SpellKit.correct_if_unknown("st")).to eq("test")
+        expect(SpellKit.correct("st")).to eq("test")
       end
 
       it "corrects distance-2 typos in batch with edit_distance: 2" do
@@ -200,11 +200,11 @@ RSpec.describe SpellKit do
         # Even with edit_distance: 2, frequency threshold should still apply
         # "incubatio" -> "incubation" (distance 1, freq 600)
         # Should NOT correct because 600 < 1000
-        expect(SpellKit.correct_if_unknown("incubatio")).to eq("incubatio")
+        expect(SpellKit.correct("incubatio")).to eq("incubatio")
 
         # But high-frequency corrections should still work
         # "heo" -> "hello" (distance 2, freq 10000 > 1000)
-        expect(SpellKit.correct_if_unknown("heo")).to eq("hello")
+        expect(SpellKit.correct("heo")).to eq("hello")
       end
 
       it "prefers closer matches when multiple distances available" do
@@ -213,15 +213,15 @@ RSpec.describe SpellKit do
         # "helo" has both distance-1 match ("hello") and potentially distance-2 matches
         # Should prefer distance-1 "hello" over any distance-2 alternatives
         # SymSpell orders by distance first, then frequency, so this should work
-        expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
+        expect(SpellKit.correct("helo")).to eq("hello")
       end
 
       it "still short-circuits on exact matches with edit_distance: 2" do
         SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
 
         # "hello" is exact match (distance 0) - should return as-is
-        expect(SpellKit.correct_if_unknown("hello")).to eq("hello")
-        expect(SpellKit.correct_if_unknown("test")).to eq("test")
+        expect(SpellKit.correct("hello")).to eq("hello")
+        expect(SpellKit.correct("test")).to eq("test")
       end
     end
   end

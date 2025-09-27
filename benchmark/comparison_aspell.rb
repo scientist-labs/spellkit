@@ -62,7 +62,7 @@ Benchmark.ips do |x|
 
   x.report("SpellKit (Rust)") do
     TEST_WORDS.each do |word|
-      SpellKit.suggest(word, 5)
+      SpellKit.suggestions(word, 5)
     end
   end
 
@@ -108,13 +108,13 @@ puts "-" * 80
 puts
 
 # Warmup
-1000.times { SpellKit.suggest("helo", 5) }
+1000.times { SpellKit.suggestions("helo", 5) }
 
 # Collect latency samples for SpellKit
 latencies_spellkit = []
 10_000.times do
   start = Process.clock_gettime(Process::CLOCK_MONOTONIC, :microsecond)
-  SpellKit.suggest("helo", 5)
+  SpellKit.suggestions("helo", 5)
   finish = Process.clock_gettime(Process::CLOCK_MONOTONIC, :microsecond)
   latencies_spellkit << (finish - start)
 end

@@ -47,8 +47,8 @@ RSpec.describe "Multiple Instances" do
       symbols_checker = SpellKit::Checker.new
       symbols_checker.load!(dictionary: symbols_dict)
 
-      species_suggestions = species_checker.suggest("mose", 3)
-      symbols_suggestions = symbols_checker.suggest("brca", 3)
+      species_suggestions = species_checker.suggestions("mose", 3)
+      symbols_suggestions = symbols_checker.suggestions("brca", 3)
 
       expect(species_suggestions.map { |s| s["term"] }).to include("mouse")
       expect(symbols_suggestions.map { |s| s["term"] }).to include("brca1")
@@ -110,13 +110,13 @@ RSpec.describe "Multiple Instances" do
 
       threads << Thread.new do
         100.times do
-          results << checker1.suggest("helo", 1).first["term"]
+          results << checker1.suggestions("helo", 1).first["term"]
         end
       end
 
       threads << Thread.new do
         100.times do
-          results << checker2.suggest("mose", 1).first["term"]
+          results << checker2.suggestions("mose", 1).first["term"]
         end
       end
 
@@ -137,7 +137,7 @@ RSpec.describe "Multiple Instances" do
       10.times do
         threads << Thread.new do
           50.times do
-            results << checker.suggest("helo", 1).first["term"]
+            results << checker.suggestions("helo", 1).first["term"]
           end
         end
       end
@@ -185,7 +185,7 @@ RSpec.describe "Multiple Instances" do
       # Thread 1: suggest
       threads << Thread.new do
         100.times do
-          checker.suggest("helo", 3)
+          checker.suggestions("helo", 3)
         end
       rescue => e
         errors << e
@@ -203,7 +203,7 @@ RSpec.describe "Multiple Instances" do
       # Thread 3: correct_if_unknown
       threads << Thread.new do
         100.times do
-          checker.correct_if_unknown("helo")
+          checker.correct("helo")
         end
       rescue => e
         errors << e
@@ -235,7 +235,7 @@ RSpec.describe "Multiple Instances" do
       5.times do
         threads << Thread.new do
           100.times do
-            checker.suggest("helo", 1)
+            checker.suggestions("helo", 1)
             sleep 0.001
           end
         rescue => e

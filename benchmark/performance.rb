@@ -42,15 +42,15 @@ Benchmark.ips do |x|
   x.config(time: 5, warmup: 2)
 
   x.report("suggest (max: 1)") do
-    COMMON_TYPOS.each { |word| SpellKit.suggest(word, 1) }
+    COMMON_TYPOS.each { |word| SpellKit.suggestions(word, 1) }
   end
 
   x.report("suggest (max: 5)") do
-    COMMON_TYPOS.each { |word| SpellKit.suggest(word, 5) }
+    COMMON_TYPOS.each { |word| SpellKit.suggestions(word, 5) }
   end
 
   x.report("suggest (max: 10)") do
-    COMMON_TYPOS.each { |word| SpellKit.suggest(word, 10) }
+    COMMON_TYPOS.each { |word| SpellKit.suggestions(word, 10) }
   end
 
   x.compare!
@@ -58,7 +58,7 @@ end
 
 puts
 puts "-" * 80
-puts "Benchmark 2: Correction (correct_if_unknown)"
+puts "Benchmark 2: Correction (correct)"
 puts "Testing with #{MIXED_WORDS.size} words (50% correct, 50% misspelled)"
 puts "-" * 80
 puts
@@ -66,8 +66,8 @@ puts
 Benchmark.ips do |x|
   x.config(time: 5, warmup: 2)
 
-  x.report("correct_if_unknown") do
-    MIXED_WORDS.each { |word| SpellKit.correct_if_unknown(word) }
+  x.report("correct") do
+    MIXED_WORDS.each { |word| SpellKit.correct(word) }
   end
 
   x.compare!
@@ -112,11 +112,11 @@ Benchmark.ips do |x|
   x.config(time: 5, warmup: 2)
 
   x.report("without guard") do
-    WORDS_WITH_PROTECTED.each { |word| SpellKit.correct_if_unknown(word) }
+    WORDS_WITH_PROTECTED.each { |word| SpellKit.correct(word) }
   end
 
   x.report("with guard") do
-    WORDS_WITH_PROTECTED.each { |word| SpellKit.correct_if_unknown(word, guard: :domain) }
+    WORDS_WITH_PROTECTED.each { |word| SpellKit.correct(word, guard: :domain) }
   end
 
   x.compare!
@@ -130,13 +130,13 @@ puts "-" * 80
 puts
 
 # Warmup
-1000.times { SpellKit.suggest("helo", 5) }
+1000.times { SpellKit.suggestions("helo", 5) }
 
 # Collect latency samples
 latencies = []
 10_000.times do
   start = Process.clock_gettime(Process::CLOCK_MONOTONIC, :microsecond)
-  SpellKit.suggest("helo", 5)
+  SpellKit.suggestions("helo", 5)
   finish = Process.clock_gettime(Process::CLOCK_MONOTONIC, :microsecond)
   latencies << (finish - start)
 end
@@ -162,7 +162,7 @@ puts
 
 iterations = 100_000
 start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-iterations.times { SpellKit.suggest("helo", 1) }
+iterations.times { SpellKit.suggestions("helo", 1) }
 finish = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
 elapsed = finish - start

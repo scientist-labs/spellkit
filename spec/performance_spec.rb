@@ -10,12 +10,12 @@ RSpec.describe "Performance (M5)" do
   describe "latency targets" do
     it "suggests within p95 < 100µs (with small dictionary)" do
       # Warmup
-      10.times { SpellKit.suggest("helo", 5) }
+      10.times { SpellKit.suggestions("helo", 5) }
 
       times = []
       1000.times do
         start = Time.now
-        SpellKit.suggest("helo", 5)
+        SpellKit.suggestions("helo", 5)
         times << (Time.now - start) * 1_000_000 # microseconds
       end
 
@@ -33,7 +33,7 @@ RSpec.describe "Performance (M5)" do
       times = []
       1000.times do
         start = Time.now
-        SpellKit.correct_if_unknown("helo")
+        SpellKit.correct("helo")
         times << (Time.now - start) * 1_000_000
       end
 
@@ -59,7 +59,7 @@ RSpec.describe "Performance (M5)" do
       times = []
       1000.times do
         start = Time.now
-        SpellKit.correct_if_unknown("CDK10", guard: :domain)
+        SpellKit.correct("CDK10", guard: :domain)
         times << (Time.now - start) * 1_000_000
       end
 
