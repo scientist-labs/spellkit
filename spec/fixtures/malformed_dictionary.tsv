@@ -1,0 +1,10 @@
+hello	10000
+world	8000
+test
+missing_frequency
+extra	column	here	100
+New York	5000
+cell culture	3000
+valid	2000
+another-valid	1500
+bad_freq	not_a_number

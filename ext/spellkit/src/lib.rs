@@ -22,6 +22,9 @@ struct CheckerState {
     loaded_at: Option<u64>,
     dictionary_size: usize,
     edit_distance: usize,
+    skipped_malformed: usize,
+    skipped_multiword: usize,
+    skipped_invalid_freq: usize,
 }
 
 impl CheckerState {
@@ -34,6 +37,9 @@ impl CheckerState {
             loaded_at: None,
             dictionary_size: 0,
             edit_distance: 1,
+            skipped_malformed: 0,
+            skipped_multiword: 0,
+            skipped_invalid_freq: 0,
         }
     }
 }
@@ -71,17 +77,47 @@ impl Checker {
         let reader = std::io::BufReader::new(file);
         let mut symspell = SymSpell::new(edit_dist);
         let mut dictionary_size = 0;
+        let mut skipped_malformed = 0;
+        let mut skipped_multiword = 0;
+        let mut skipped_invalid_freq = 0;
 
         use std::io::BufRead;
         for line in reader.lines() {
             let line = line.map_err(|e| Error::new(ruby.exception_runtime_error(), format!("Failed to read line: {}", e)))?;
-            let parts: Vec<&str> = line.split_whitespace().collect();
 
-            if parts.len() == 2 {
-                if let Ok(freq) = parts[1].parse::<u64>() {
-                    let normalized = SymSpell::normalize_word(parts[0]);
+            // Split on tab character for proper TSV parsing
+            let parts: Vec<&str> = line.split('\t').collect();
+
+            // Validate we have exactly 2 columns (term and frequency)
+            if parts.len() != 2 {
+                skipped_malformed += 1;
+                continue;
+            }
+
+            let term = parts[0].trim();
+            let freq_str = parts[1].trim();
+
+            // Skip empty terms or frequencies
+            if term.is_empty() || freq_str.is_empty() {
+                skipped_malformed += 1;
+                continue;
+            }
+
+            // Check for multi-word terms (SymSpell algorithm doesn't support phrases)
+            if term.contains(char::is_whitespace) {
+                skipped_multiword += 1;
+                continue;
+            }
+
+            // Parse frequency
+            match freq_str.parse::<u64>() {
+                Ok(freq) => {
+                    let normalized = SymSpell::normalize_word(term);
                     symspell.add_word(&normalized, freq);
                     dictionary_size += 1;
+                }
+                Err(_) => {
+                    skipped_invalid_freq += 1;
                 }
             }
         }
@@ -142,6 +178,9 @@ impl Checker {
         state.loaded_at = loaded_at;
         state.dictionary_size = dictionary_size;
         state.edit_distance = edit_dist;
+        state.skipped_malformed = skipped_malformed;
+        state.skipped_multiword = skipped_multiword;
+        state.skipped_invalid_freq = skipped_invalid_freq;
 
         Ok(())
     }
@@ -318,6 +357,9 @@ impl Checker {
         stats.aset("loaded", true)?;
         stats.aset("dictionary_size", state.dictionary_size)?;
         stats.aset("edit_distance", state.edit_distance)?;
+        stats.aset("skipped_malformed", state.skipped_malformed)?;
+        stats.aset("skipped_multiword", state.skipped_multiword)?;
+        stats.aset("skipped_invalid_freq", state.skipped_invalid_freq)?;
 
         if let Some(loaded_at) = state.loaded_at {
             stats.aset("loaded_at", loaded_at)?;
