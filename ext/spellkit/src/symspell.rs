@@ -71,20 +71,40 @@ impl SymSpell {
     }
 
     pub fn add_word(&mut self, normalized: &str, canonical: &str, frequency: u64) -> bool {
-        let was_new = self.words.insert(
-            normalized.to_string(),
-            WordEntry {
-                canonical: canonical.to_string(),
-                frequency,
-            },
-        ).is_none();
+        let normalized_key = normalized.to_string();
 
-        let deletes = self.get_deletes(normalized, self.max_edit_distance);
-        for delete in deletes {
-            self.deletes
-                .entry(delete)
-                .or_insert_with(HashSet::new)
-                .insert(normalized.to_string());
+        let was_new = if let Some(existing) = self.words.get_mut(&normalized_key) {
+            // Duplicate: sum frequencies and keep highest-frequency canonical form
+            let new_total_freq = existing.frequency + frequency;
+
+            // Keep the canonical form from the higher-frequency variant
+            if frequency > existing.frequency {
+                existing.canonical = canonical.to_string();
+            }
+
+            existing.frequency = new_total_freq;
+            false
+        } else {
+            // New entry
+            self.words.insert(
+                normalized_key.clone(),
+                WordEntry {
+                    canonical: canonical.to_string(),
+                    frequency,
+                },
+            );
+            true
+        };
+
+        // Only generate deletes for new entries (avoid redundant work)
+        if was_new {
+            let deletes = self.get_deletes(normalized, self.max_edit_distance);
+            for delete in deletes {
+                self.deletes
+                    .entry(delete)
+                    .or_insert_with(HashSet::new)
+                    .insert(normalized_key.clone());
+            }
         }
 
         was_new
@@ -295,5 +315,35 @@ mod tests {
         let suggestions_for_j = symspell.suggestions("j", 5);
         assert!(!suggestions_for_j.is_empty(), "Should find suggestions for 'j'");
         assert!(suggestions_for_j.iter().any(|s| s.term == "I"), "Should suggest canonical 'I' (not 'i')");
+    }
+
+    #[test]
+    fn test_duplicate_entries_keep_highest_frequency_canonical() {
+        let mut symspell = SymSpell::new(1);
+
+        // Add high-frequency lowercase variant
+        symspell.add_word("hello", "hello", 10000);
+
+        // Add low-frequency uppercase variant (should not replace canonical)
+        symspell.add_word("hello", "HELLO", 100);
+
+        let suggestions = symspell.suggestions("hello", 1);
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0].term, "hello", "Should keep high-frequency 'hello' as canonical, not 'HELLO'");
+        assert_eq!(suggestions[0].frequency, 10100, "Should sum frequencies: 10000 + 100 = 10100");
+
+        // Verify reverse order also works
+        let mut symspell2 = SymSpell::new(1);
+
+        // Add low-frequency first
+        symspell2.add_word("world", "WORLD", 100);
+
+        // Add high-frequency second (should replace canonical)
+        symspell2.add_word("world", "world", 10000);
+
+        let suggestions2 = symspell2.suggestions("world", 1);
+        assert_eq!(suggestions2.len(), 1);
+        assert_eq!(suggestions2[0].term, "world", "Should update to high-frequency 'world' canonical");
+        assert_eq!(suggestions2[0].frequency, 10100, "Should sum frequencies");
     }
 }

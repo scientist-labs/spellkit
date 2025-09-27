@@ -252,7 +252,7 @@ RSpec.describe "Dictionary Validation" do
       dup_dict = Tempfile.new(["dup", ".tsv"])
       dup_dict.write("hello\t1000\n")
       dup_dict.write("world\t2000\n")
-      dup_dict.write("hello\t3000\n")  # Duplicate (will overwrite)
+      dup_dict.write("hello\t3000\n")  # Duplicate (higher frequency, so keeps "hello" canonical)
       dup_dict.close
 
       SpellKit.load!(dictionary: dup_dict.path)
@@ -262,18 +262,20 @@ RSpec.describe "Dictionary Validation" do
       expect(stats["dictionary_size"]).to eq(2)
       expect(stats["skipped_duplicates"]).to eq(1)
 
-      # Verify hello was loaded (last entry wins with freq 3000)
+      # Verify hello was loaded with summed frequency (1000 + 3000 = 4000)
       expect(SpellKit.correct("helo")).to eq("hello")
+      suggestions = SpellKit.suggestions("hello", 1)
+      expect(suggestions.first["freq"]).to eq(4000)
 
       dup_dict.unlink
     end
 
-    it "tracks case-insensitive duplicates" do
+    it "tracks case-insensitive duplicates and keeps highest-frequency canonical" do
       case_dict = Tempfile.new(["case", ".tsv"])
       case_dict.write("hello\t1000\n")
-      case_dict.write("HELLO\t2000\n")   # Same normalized form
+      case_dict.write("HELLO\t2000\n")   # Same normalized form, higher frequency
       case_dict.write("world\t3000\n")
-      case_dict.write("World\t4000\n")   # Same normalized form
+      case_dict.write("World\t4000\n")   # Same normalized form, higher frequency
       case_dict.write("test\t5000\n")
       case_dict.close
 
@@ -284,9 +286,14 @@ RSpec.describe "Dictionary Validation" do
       expect(stats["dictionary_size"]).to eq(3)
       expect(stats["skipped_duplicates"]).to eq(2)
 
-      # Last entry wins: HELLO (2000), World (4000)
-      suggestions = SpellKit.suggestions("hello", 1)
-      expect(suggestions.first["freq"]).to eq(2000)
+      # Higher-frequency canonical wins, frequencies are summed
+      hello_suggestions = SpellKit.suggestions("hello", 1)
+      expect(hello_suggestions.first["term"]).to eq("HELLO")  # 2000 > 1000
+      expect(hello_suggestions.first["freq"]).to eq(3000)     # 1000 + 2000
+
+      world_suggestions = SpellKit.suggestions("world", 1)
+      expect(world_suggestions.first["term"]).to eq("World")  # 4000 > 3000
+      expect(world_suggestions.first["freq"]).to eq(7000)     # 3000 + 4000
 
       case_dict.unlink
     end
