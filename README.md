@@ -546,27 +546,26 @@ end
 ### SpellKit Standalone (M1 MacBook Pro, Ruby 3.3.0)
 
 **Single Word Suggestions:**
-- 16,985 i/s (58.88 μs/i) with max: 1 suggestion
-- 16,454 i/s (60.78 μs/i) with max: 5 suggestions
-- 16,370 i/s (61.09 μs/i) with max: 10 suggestions
+- 18,015 i/s (55.51 μs/i) with max: 1 suggestion
+- 17,415 i/s (57.42 μs/i) with max: 5 suggestions
+- 17,463 i/s (57.26 μs/i) with max: 10 suggestions
 
 **Correction Performance:**
-- `correct`: 7,348 i/s (136.09 μs/i)
-- `correct_tokens` (batch): 8,235 i/s (121.43 μs/i)
-- `correct?` (boolean check): 59,217 i/s (16.89 μs/i)
+- `correct`: 8,259 i/s (121.08 μs/i)
+- `correct_tokens` (batch): 8,262 i/s (121.04 μs/i)
 
 **Guard Performance:**
-- Without guard: 59,217 i/s (16.89 μs/i)
-- With guard: 105,685 i/s (9.46 μs/i) - **1.78x faster!**
+- Without guard: 63,932 i/s (15.64 μs/i)
+- With guard: 113,490 i/s (8.81 μs/i) - **1.78x faster!**
   *(Guards short-circuit expensive lookups)*
 
 **Latency Distribution (10,000 iterations):**
 - p50: 3μs
 - p95: 4μs
-- p99: 23μs
-- max: 216μs
+- p99: 22μs
+- max: 192μs
 
-**Raw Throughput:** 352,108 ops/sec
+**Raw Throughput:** 385,713 ops/sec
 
 ### Comparison with Aspell (M1 MacBook Pro, Ruby 3.3.0)
 
@@ -585,7 +584,7 @@ SpellKit vs Aspell on identical word lists:
 ### Key Takeaways
 1. **Consistent Performance**: p95 and p99 latencies remain low (< 25μs)
 2. **Guards are Fast**: Protected term checks improve performance by avoiding dictionary lookups
-3. **High Throughput**: Over 350k operations per second
+3. **High Throughput**: Over 385k operations per second
 4. **Scales Well**: Minimal performance difference between 1 vs 10 suggestions
 
 ## Benchmarks
