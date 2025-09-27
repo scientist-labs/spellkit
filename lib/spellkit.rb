@@ -1,6 +1,7 @@
 require_relative "spellkit/version"
 require "uri"
 require "net/http"
+require "openssl"
 require "fileutils"
 
 begin
