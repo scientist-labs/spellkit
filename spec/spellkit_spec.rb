@@ -191,6 +191,38 @@ RSpec.describe SpellKit do
         # "tst" -> "test" (distance 1, corrected)
         expect(corrected).to eq(%w[heo st hello test])
       end
+
+      it "respects frequency threshold with edit_distance: 2" do
+        # "incubation" has frequency 600 in test dictionary
+        # Set threshold to 1000, so 600 < 1000 = rejection
+        SpellKit.load!(dictionary: test_unigrams, edit_distance: 2, frequency_threshold: 1000.0)
+
+        # Even with edit_distance: 2, frequency threshold should still apply
+        # "incubatio" -> "incubation" (distance 1, freq 600)
+        # Should NOT correct because 600 < 1000
+        expect(SpellKit.correct_if_unknown("incubatio")).to eq("incubatio")
+
+        # But high-frequency corrections should still work
+        # "heo" -> "hello" (distance 2, freq 10000 > 1000)
+        expect(SpellKit.correct_if_unknown("heo")).to eq("hello")
+      end
+
+      it "prefers closer matches when multiple distances available" do
+        SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
+
+        # "helo" has both distance-1 match ("hello") and potentially distance-2 matches
+        # Should prefer distance-1 "hello" over any distance-2 alternatives
+        # SymSpell orders by distance first, then frequency, so this should work
+        expect(SpellKit.correct_if_unknown("helo")).to eq("hello")
+      end
+
+      it "still short-circuits on exact matches with edit_distance: 2" do
+        SpellKit.load!(dictionary: test_unigrams, edit_distance: 2)
+
+        # "hello" is exact match (distance 0) - should return as-is
+        expect(SpellKit.correct_if_unknown("hello")).to eq("hello")
+        expect(SpellKit.correct_if_unknown("test")).to eq("test")
+      end
     end
   end
 end

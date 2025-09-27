@@ -37,6 +37,22 @@ RSpec.describe "Guards & Domain Policies (M2)" do
       expect(corrected).to eq(%w[rat lysis buffer for CDK10])
       # "lyssis" → "lysis" (ED=1), "buffers" → "buffer" (ED=1), "CDK10" protected
     end
+
+    it "preserves protected terms with edit_distance: 2" do
+      SpellKit.load!(
+        dictionary: test_unigrams,
+        protected_path: protected_file,
+        edit_distance: 2
+      )
+
+      # Protected terms should remain protected even with edit_distance: 2
+      expect(SpellKit.correct_if_unknown("CDK10", guard: :domain)).to eq("CDK10")
+      expect(SpellKit.correct_if_unknown("BRCA1", guard: :domain)).to eq("BRCA1")
+
+      # Non-protected distance-2 typos should still be corrected
+      # "heo" -> "hello" (distance 2)
+      expect(SpellKit.correct_if_unknown("heo", guard: :domain)).to eq("hello")
+    end
   end
 
   describe "without guards" do
