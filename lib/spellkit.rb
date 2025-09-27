@@ -105,7 +105,9 @@ class SpellKit::Checker
   alias_method :_rust_healthcheck, :healthcheck
 
   def load!(dictionary: nil, protected_path: nil, protected_patterns: [],
-            edit_distance: 1, frequency_threshold: 10.0, **_options)
+            edit_distance: 1, frequency_threshold: 10.0,
+            skip_urls: false, skip_emails: false, skip_hostnames: false,
+            skip_code_patterns: false, skip_numbers: false, **_options)
 
     # Validate dictionary parameter
     raise SpellKit::InvalidArgumentError, "dictionary parameter is required" if dictionary.nil?
@@ -130,6 +132,18 @@ class SpellKit::Checker
       raise SpellKit::InvalidArgumentError, "protected_patterns must be an Array"
     end
 
+    # Build skip patterns from convenience flags
+    skip_patterns = build_skip_patterns(
+      skip_urls: skip_urls,
+      skip_emails: skip_emails,
+      skip_hostnames: skip_hostnames,
+      skip_code_patterns: skip_code_patterns,
+      skip_numbers: skip_numbers
+    )
+
+    # Merge skip patterns with user-provided patterns
+    all_patterns = skip_patterns + protected_patterns
+
     config = {
       "dictionary_path" => dictionary_path,
       "edit_distance" => edit_distance,
@@ -139,8 +153,8 @@ class SpellKit::Checker
     config["protected_path"] = protected_path.to_s if protected_path
 
     # Convert Ruby Regex objects to hashes with flags for Rust
-    if protected_patterns.any?
-      pattern_objects = protected_patterns.map do |pattern|
+    if all_patterns.any?
+      pattern_objects = all_patterns.map do |pattern|
         if pattern.is_a?(Regexp)
           # Extract flags from Regexp.options bitmask
           options = pattern.options
@@ -207,6 +221,61 @@ class SpellKit::Checker
   end
 
   private
+
+  def build_skip_patterns(skip_urls:, skip_emails:, skip_hostnames:, skip_code_patterns:, skip_numbers:)
+    patterns = []
+
+    # Priority 1: URLs, Emails, Hostnames
+    if skip_urls
+      # Match http:// or https:// URLs
+      patterns << /^https?:\/\/[^\s]+$/i
+      # Match www. URLs
+      patterns << /^www\.[^\s]+$/i
+    end
+
+    if skip_emails
+      # Match email addresses: user@domain.com, user+tag@domain.co.uk
+      patterns << /^[\w.+-]+@[\w.-]+\.\w+$/i
+    end
+
+    if skip_hostnames
+      # Match hostnames: example.com, sub.example.com, my-site.co.uk
+      # Must have at least one dot and valid TLD
+      patterns << /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i
+    end
+
+    # Priority 2: Code patterns
+    if skip_code_patterns
+      # Match camelCase: starts lowercase, has uppercase (arrayMap, getElementById)
+      patterns << /^[a-z]+[A-Z][a-zA-Z0-9]*$/
+      # Match PascalCase: starts uppercase, has mixed case (ArrayList, MyClass)
+      patterns << /^[A-Z][a-z]+[A-Z][a-zA-Z0-9]*$/
+      # Match snake_case: lowercase with underscores (my_function, API_KEY)
+      patterns << /^[a-z]+_[a-z0-9_]+$/i
+      # Match SCREAMING_SNAKE_CASE: uppercase with underscores
+      patterns << /^[A-Z]+_[A-Z0-9_]+$/
+      # Match dotted.paths: identifier.identifier (Array.map, config.yml)
+      patterns << /^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_.]*$/
+    end
+
+    # Priority 3: Numeric patterns
+    if skip_numbers
+      # Match version numbers: 1.0, 1.2.3, 1.2.3.4
+      patterns << /^\d+\.\d+(\.\d+)?(\.\d+)?$/
+      # Match hash/IDs: #123, #4567
+      patterns << /^#\d+$/
+      # Match measurements with common units
+      # Weight: kg, g, mg, lb, oz
+      # Distance: km, m, cm, mm, mi, ft, in
+      # Data: gb, mb, kb, tb, pb
+      # Screen: px, pt, em, rem
+      patterns << /^\d+(\.\d+)?(kg|g|mg|lb|oz|km|m|cm|mm|mi|ft|in|gb|mb|kb|tb|pb|px|pt|em|rem)$/i
+      # Match standalone numbers at start of word (5kg, 123abc)
+      patterns << /^\d/
+    end
+
+    patterns
+  end
 
   def download_dictionary(url)
     require "digest"
