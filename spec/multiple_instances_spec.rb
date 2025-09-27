@@ -125,5 +125,139 @@ RSpec.describe "Multiple Instances" do
       expect(results).to include("hello", "mouse")
       expect(results.count).to eq(200)
     end
+
+    it "allows concurrent reads on the same instance" do
+      checker = SpellKit::Checker.new
+      checker.load!(dictionary: test_unigrams)
+
+      threads = []
+      results = []
+
+      # Multiple threads reading from same instance
+      10.times do
+        threads << Thread.new do
+          50.times do
+            results << checker.suggest("helo", 1).first["term"]
+          end
+        end
+      end
+
+      threads.each(&:join)
+
+      expect(results.uniq).to eq(["hello"])
+      expect(results.count).to eq(500)
+    end
+
+    it "allows concurrent correct_tokens calls on the same instance" do
+      checker = SpellKit::Checker.new
+      checker.load!(dictionary: test_unigrams)
+
+      threads = []
+      results = []
+
+      tokens = %w[helo wrld teset buffr]
+
+      # Multiple threads batch correcting on same instance
+      10.times do
+        threads << Thread.new do
+          20.times do
+            corrected = checker.correct_tokens(tokens)
+            results << corrected
+          end
+        end
+      end
+
+      threads.each(&:join)
+
+      expect(results.count).to eq(200)
+      # All results should be identical
+      expect(results.uniq.count).to eq(1)
+      expect(results.first).to eq(%w[hello world test buffer])
+    end
+
+    it "allows concurrent mixed operations on the same instance" do
+      checker = SpellKit::Checker.new
+      checker.load!(dictionary: test_unigrams)
+
+      threads = []
+      errors = []
+
+      # Thread 1: suggest
+      threads << Thread.new do
+        100.times do
+          checker.suggest("helo", 3)
+        end
+      rescue => e
+        errors << e
+      end
+
+      # Thread 2: correct?
+      threads << Thread.new do
+        100.times do
+          checker.correct?("hello")
+        end
+      rescue => e
+        errors << e
+      end
+
+      # Thread 3: correct_if_unknown
+      threads << Thread.new do
+        100.times do
+          checker.correct_if_unknown("helo")
+        end
+      rescue => e
+        errors << e
+      end
+
+      # Thread 4: correct_tokens
+      threads << Thread.new do
+        50.times do
+          checker.correct_tokens(%w[helo wrld teset])
+        end
+      rescue => e
+        errors << e
+      end
+
+      threads.each(&:join)
+
+      expect(errors).to be_empty
+    end
+
+    it "handles concurrent reads during hot reload" do
+      checker = SpellKit::Checker.new
+      checker.load!(dictionary: test_unigrams)
+
+      threads = []
+      read_errors = []
+      write_errors = []
+
+      # Multiple reader threads
+      5.times do
+        threads << Thread.new do
+          100.times do
+            checker.suggest("helo", 1)
+            sleep 0.001
+          end
+        rescue => e
+          read_errors << e
+        end
+      end
+
+      # One writer thread doing hot reloads
+      threads << Thread.new do
+        5.times do
+          sleep 0.01
+          checker.load!(dictionary: test_unigrams)
+        end
+      rescue => e
+        write_errors << e
+      end
+
+      threads.each(&:join)
+
+      # Reads should succeed even during hot reload (read lock allows concurrent reads)
+      expect(read_errors).to be_empty
+      expect(write_errors).to be_empty
+    end
   end
 end
