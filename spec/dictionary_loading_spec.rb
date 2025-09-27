@@ -195,5 +195,32 @@ RSpec.describe "Dictionary Loading" do
     it "is defined and is a valid URL" do
       expect(SpellKit::DEFAULT_DICTIONARY_URL).to match(%r{^https://})
     end
+
+    it "actually loads and works correctly", :integration do
+      # This is a critical integration test - ensures the default dictionary URL actually works
+      SpellKit.load!(dictionary: SpellKit::DEFAULT_DICTIONARY_URL)
+
+      stats = SpellKit.stats
+
+      # SymSpell en-80k dictionary should load successfully
+      expect(stats["loaded"]).to eq(true)
+      expect(stats["dictionary_size"]).to be > 75000  # Should have ~80k words
+      expect(stats["skipped_malformed"]).to eq(0)      # No parsing errors
+
+      # Verify basic functionality with common English words
+      expect(SpellKit.correct?("hello")).to eq(true)
+      expect(SpellKit.correct?("world")).to eq(true)
+      expect(SpellKit.correct?("the")).to eq(true)
+
+      # Verify corrections work
+      expect(SpellKit.correct("helo")).to be_a(String)
+      expect(SpellKit.correct("helo")).not_to eq("helo")  # Should be corrected
+
+      # Verify suggestions work
+      suggestions = SpellKit.suggestions("helo", 5)
+      expect(suggestions).not_to be_empty
+      expect(suggestions.first).to have_key("term")
+      expect(suggestions.first).to have_key("freq")
+    end
   end
 end

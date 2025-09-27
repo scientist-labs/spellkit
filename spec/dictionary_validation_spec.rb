@@ -87,19 +87,23 @@ RSpec.describe "Dictionary Validation" do
       dict_with_tabs.unlink
     end
 
-    it "rejects entries with only spaces (no tab delimiter)" do
-      # Test that space-separated entries are rejected
+    it "accepts space-separated entries (SymSpell format)" do
+      # Space-separated format is now supported for SymSpell dictionaries
       space_dict = Tempfile.new(["space", ".tsv"])
-      space_dict.write("hello 10000\n")  # Space instead of tab
-      space_dict.write("world 8000\n")   # Space instead of tab
+      space_dict.write("hello 10000\n")  # Space separator (SymSpell format)
+      space_dict.write("world 8000\n")   # Space separator (SymSpell format)
       space_dict.close
 
       SpellKit.load!(dictionary: space_dict.path)
 
       stats = SpellKit.stats
-      # Both should be skipped as malformed (1 column when split by tab)
-      expect(stats["dictionary_size"]).to eq(0)
-      expect(stats["skipped_malformed"]).to eq(2)
+      # Both should load successfully
+      expect(stats["dictionary_size"]).to eq(2)
+      expect(stats["skipped_malformed"]).to eq(0)
+
+      # Verify they work
+      expect(SpellKit.correct?("hello")).to eq(true)
+      expect(SpellKit.correct?("world")).to eq(true)
 
       space_dict.unlink
     end

@@ -134,8 +134,12 @@ impl Checker {
         for line in reader.lines() {
             let line = line.map_err(|e| Error::new(ruby.exception_runtime_error(), format!("Failed to read line: {}", e)))?;
 
-            // Split on tab character for proper TSV parsing
-            let parts: Vec<&str> = line.split('\t').collect();
+            // Try tab-separated first (allows multi-word terms), then space-separated (SymSpell format)
+            let parts: Vec<&str> = if line.contains('\t') {
+                line.split('\t').collect()
+            } else {
+                line.split_whitespace().collect()
+            };
 
             // Validate we have exactly 2 columns (term and frequency)
             if parts.len() != 2 {
