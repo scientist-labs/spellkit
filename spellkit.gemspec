@@ -41,4 +41,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "webmock"
   spec.add_development_dependency "standard", "~> 1.3"
   spec.add_development_dependency "irb"
+  spec.add_development_dependency "benchmark-ips"
+  spec.add_development_dependency "ffi-aspell"
+  spec.add_development_dependency "ffi-hunspell"
 end
