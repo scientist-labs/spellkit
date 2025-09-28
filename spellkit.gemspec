@@ -16,7 +16,6 @@ Gem::Specification.new do |spec|
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
-  spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
   # Indicate that Rust toolchain is required to build this gem
   spec.requirements = ["Rust >= 1.85"]
