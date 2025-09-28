@@ -572,6 +572,27 @@ end
 3. **High Throughput**: Over 16k operations per second with 80k word dictionary
 4. **Scales Well**: Minimal performance difference between 1 vs 10 suggestions
 
+### Comparison with Aspell
+
+SpellKit vs Aspell (M4 Max MacBook Pro, Ruby 3.3.0, 80k dictionary):
+
+**Suggestion Performance (13 misspelled words):**
+- SpellKit: 3,162 i/s (316μs per batch)
+- Aspell: 433 i/s (2.31ms per batch)
+- **SpellKit is 7.3x faster**
+
+**Spell Checking (correct? on 26 words):**
+- SpellKit: 263,279 i/s (3.8μs per batch)
+- Aspell: 72,099 i/s (13.9μs per batch)
+- **SpellKit is 3.65x faster**
+
+**Latency Distribution (10,000 single-word suggestions):**
+- SpellKit: p50=63μs, p95=69μs, p99=98μs
+- Aspell: p50=105μs, p95=121μs, p99=182μs
+- **SpellKit is 1.7x faster at p50, 1.75x faster at p95**
+
+Both libraries provide high-quality spell checking, but SpellKit's SymSpell algorithm (O(1) lookup) offers significant performance advantages over Aspell's statistical approach, especially for high-throughput applications.
+
 ## Benchmarks
 
 SpellKit includes comprehensive benchmarks to measure performance and compare with other spell checkers.
