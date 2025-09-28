@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.email = ["chris@petersen.io"]
 
   spec.summary = "Fast, safe typo correction for search-term extraction"
-  spec.description = "A Ruby gem that provides fast typo correction using SymSpell algorithm, with domain-specific term protection"
+  spec.description = "A Ruby gem with a native Rust implementation of the SymSpell algorithm for fast typo correction with domain-specific term protection"
   spec.homepage = "https://github.com/scientist-labs/spellkit"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.1.0"

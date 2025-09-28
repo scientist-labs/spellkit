@@ -1,6 +1,6 @@
 <img src="/docs/assets/spellkit-wide.png" alt="spellkit" height="160px">
 
-Fast, safe typo correction for search-term extraction, wrapping the SymSpell algorithm in Rust via Magnus.
+Fast, safe typo correction for search-term extraction. A Ruby gem with a native Rust implementation of the SymSpell algorithm.
 
 SpellKit provides:
 - **Fast correction** using SymSpell with configurable edit distance (1 or 2)
@@ -8,6 +8,8 @@ SpellKit provides:
 - **Hot reload** - update dictionaries without restarting your application
 - **Sub-millisecond latency** - p95 < 2µs on small dictionaries
 - **Thread-safe** - built with Rust's Arc<RwLock> for safe concurrent access
+
+**Why a custom implementation?** Existing Rust SymSpell crates require lowercase dictionary entries, but SpellKit preserves canonical forms (NASA stays NASA, iPhone stays iPhone). We also needed domain-specific guards, hot-reload, and Aspell-style skip patterns - features not available in existing implementations.
 
 ## Why SpellKit?
 
