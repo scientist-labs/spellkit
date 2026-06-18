@@ -4,7 +4,7 @@ name: Release
 # It owns only what an `on: workflow_call` workflow cannot: the tag trigger, the
 # contents:write token grant, and spellkit's per-gem inputs/secrets. Every build
 # leg (source + arm64-darwin + x86_64-linux + aarch64-linux), SHA pin, and gotcha
-# lives once in the shared workflow (pinned @v0 = moving major). See red-candle's
+# lives once in the shared workflow (pinned @0.10.0). See red-candle's
 # release.yml for the proven template.
 #
 # Release procedure (the tag drives it; a CI-created tag would not re-trigger):
@@ -47,7 +47,7 @@ jobs:
     # Normal PRs must not run the expensive cross matrix — only a PR explicitly
     # labeled `dry-run-release` does. Tag pushes and manual dispatch always run.
     if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'dry-run-release') }}
-    uses: scientist-labs/rust-gem-release/.github/workflows/release.yml@v0
+    uses: scientist-labs/rust-gem-release/.github/workflows/release.yml@0.10.0
     with:
       # Generic (non-aliasing) adopter: gem-name == ext-name == gemspec basename ==
       # "spellkit", so ext-name / gemspec / platform-gem-env all resolve to their
