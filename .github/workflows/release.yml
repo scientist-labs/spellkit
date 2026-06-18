@@ -1,0 +1,51 @@
+name: Release
+
+# Thin caller for the shared scientist-labs/rust-gem-release reusable workflow.
+# It owns only what an `on: workflow_call` workflow cannot: the tag trigger, the
+# contents:write token grant, and spellkit's per-gem inputs/secrets. Every build
+# leg (source + arm64-darwin + x86_64-linux + aarch64-linux), SHA pin, and gotcha
+# lives once in the shared workflow (pinned @v0 = moving major). See red-candle's
+# release.yml for the proven template.
+#
+# Release procedure (the tag drives it; a CI-created tag would not re-trigger):
+#   1. bump lib/spellkit/version.rb
+#   2. git commit -am "Release vX.Y.Z"
+#   3. git tag X.Y.Z && git push origin HEAD --tags
+#
+# Dry-run any time without a tag:
+#   gh workflow run release.yml -f publish=false --ref <branch>
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"        # release:    0.1.2
+      - "[0-9]+.[0-9]+.[0-9]+.*"      # prerelease: 0.1.2.pre1, 0.1.2.rc2 (RubyGems dot form)
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+.*"
+  workflow_dispatch:
+    inputs:
+      publish:
+        type: boolean
+        default: false
+        description: "push to RubyGems (default off = dry-run)"
+
+# A reusable workflow can only REDUCE the inherited token scope, never elevate it —
+# so the caller MUST grant contents: write here (and the repo's default workflow token
+# must not be read-only) or `gh release create` 403s.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: scientist-labs/rust-gem-release/.github/workflows/release.yml@v0
+    with:
+      # Generic (non-aliasing) adopter: gem-name == ext-name == gemspec basename ==
+      # "spellkit", so ext-name / gemspec / platform-gem-env all resolve to their
+      # defaults (spellkit, spellkit.gemspec, RUST_GEM_PLATFORM) and are omitted.
+      gem-name: spellkit
+      version-command: ruby -r./lib/spellkit/version -e 'print SpellKit::VERSION'
+      # On a tag push -> publish; on manual dispatch -> the input (default false = dry-run).
+      publish: ${{ github.event_name == 'push' || inputs.publish }}
+    secrets:
+      # required: false in the shared workflow -> an empty token is a clean no-op skip.
+      rubygems-api-key: ${{ secrets.RUBYGEMS_API_KEY }}

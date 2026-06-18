@@ -1,0 +1,14 @@
+name: build
+
+# Thin PR-CI caller for the shared scientist-labs/rust-gem-release build workflow
+# (pinned @v0). Supersedes the hand-rolled ci.yml: it compiles the native extension
+# and runs the spec suite across the supported Ruby versions, with cache + setup-ruby
+# centralized in the reusable workflow.
+
+on: pull_request
+
+jobs:
+  build:
+    uses: scientist-labs/rust-gem-release/.github/workflows/build.yml@v0
+    with:
+      test-command: bundle exec rake spec

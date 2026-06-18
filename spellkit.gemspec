@@ -32,7 +32,20 @@ Gem::Specification.new do |spec|
   spec.bindir = "exe"
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
-  spec.extensions = ["ext/spellkit/extconf.rb"]
+
+  # Precompiled platform gems (e.g. arm64-darwin, built natively on a macOS runner)
+  # carry one compiled extension per Ruby ABI under lib/spellkit/<major.minor>/ and must
+  # NOT declare extensions, or RubyGems would try to recompile from Rust source on
+  # install — defeating the precompiled gem. The linux platform gems are assembled by
+  # rake-compiler/rb_sys (via oxidize-rb cross-gem), which clears extensions itself; this
+  # env gate covers the manually-assembled darwin fat gem. Unset => normal source gem.
+  if (platform_gem = ENV["RUST_GEM_PLATFORM"])
+    spec.platform = platform_gem
+    spec.extensions = []
+    spec.files += Dir["lib/spellkit/*/spellkit.bundle"] + Dir["lib/spellkit/*/spellkit.so"]
+  else
+    spec.extensions = ["ext/spellkit/extconf.rb"]
+  end
 
   spec.add_dependency "rb_sys", "~> 0.9"
 
