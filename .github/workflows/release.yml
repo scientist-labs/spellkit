@@ -14,6 +14,11 @@ name: Release
 #
 # Dry-run any time without a tag:
 #   gh workflow run release.yml -f publish=false --ref <branch>
+#
+# Pre-merge full-matrix dry-run: add the `dry-run-release` label to a PR. The
+# `labeled` trigger below fires the real release pipeline (publish=false) against
+# the PR branch, validating every cross leg before merge. workflow_dispatch can't
+# reach a branch-only workflow, so the label is the only pre-merge path.
 
 on:
   push:
@@ -28,6 +33,8 @@ on:
         type: boolean
         default: false
         description: "push to RubyGems (default off = dry-run)"
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 # A reusable workflow can only REDUCE the inherited token scope, never elevate it —
 # so the caller MUST grant contents: write here (and the repo's default workflow token
@@ -37,6 +44,9 @@ permissions:
 
 jobs:
   release:
+    # Normal PRs must not run the expensive cross matrix — only a PR explicitly
+    # labeled `dry-run-release` does. Tag pushes and manual dispatch always run.
+    if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'dry-run-release') }}
     uses: scientist-labs/rust-gem-release/.github/workflows/release.yml@v0
     with:
       # Generic (non-aliasing) adopter: gem-name == ext-name == gemspec basename ==
@@ -45,7 +55,8 @@ jobs:
       gem-name: spellkit
       version-command: ruby -r./lib/spellkit/version -e 'print SpellKit::VERSION'
       # On a tag push -> publish; on manual dispatch -> the input (default false = dry-run).
-      publish: ${{ github.event_name == 'push' || inputs.publish }}
+      # A labeled-PR dry-run is never a publish (the pull_request event has no `inputs`).
+      publish: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
     secrets:
       # required: false in the shared workflow -> an empty token is a clean no-op skip.
       rubygems-api-key: ${{ secrets.RUBYGEMS_API_KEY }}
