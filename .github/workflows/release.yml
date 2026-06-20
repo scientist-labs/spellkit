@@ -4,7 +4,7 @@ name: Release
 # It owns only what an `on: workflow_call` workflow cannot: the tag trigger, the
 # contents:write token grant, and spellkit's per-gem inputs/secrets. Every build
 # leg (source + arm64-darwin + x86_64-linux + aarch64-linux), SHA pin, and gotcha
-# lives once in the shared workflow (pinned @0.10.0). See red-candle's
+# lives once in the shared workflow (pinned @0.11.0). See red-candle's
 # release.yml for the proven template.
 #
 # Release procedure (the tag drives it; a CI-created tag would not re-trigger):
@@ -29,6 +29,10 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+.*"
   workflow_dispatch:
     inputs:
+      version:
+        type: string
+        default: ""
+        description: "Version to cut + release, e.g. 1.0.0 (blank = build-only dry-run)"
       publish:
         type: boolean
         default: false
@@ -47,13 +51,16 @@ jobs:
     # Normal PRs must not run the expensive cross matrix — only a PR explicitly
     # labeled `dry-run-release` does. Tag pushes and manual dispatch always run.
     if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'dry-run-release') }}
-    uses: scientist-labs/rust-gem-release/.github/workflows/release.yml@0.10.0
+    uses: scientist-labs/rust-gem-release/.github/workflows/release.yml@0.11.0
     with:
       # Generic (non-aliasing) adopter: gem-name == ext-name == gemspec basename ==
       # "spellkit", so ext-name / gemspec / platform-gem-env all resolve to their
       # defaults (spellkit, spellkit.gemspec, RUST_GEM_PLATFORM) and are omitted.
       gem-name: spellkit
       version-command: ruby -r./lib/spellkit/version -e 'print SpellKit::VERSION'
+      version: ${{ inputs.version }}
+      bump-command: |
+        sed -i 's/^\( *VERSION *= *\).*/\1"'"$VERSION"'"/' lib/spellkit/version.rb
       # On a tag push -> publish; on manual dispatch -> the input (default false = dry-run).
       # A labeled-PR dry-run is never a publish (the pull_request event has no `inputs`).
       publish: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
