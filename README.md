@@ -684,9 +684,13 @@ bundle exec rake build
 ## Platform Support
 
 Pre-built gems available for:
-- macOS (x86_64, arm64)
-- Linux (glibc, musl)
-- Ruby 3.1, 3.2, 3.3
+- macOS (arm64)
+- Linux (x86_64, aarch64)
+- Ruby 3.1, 3.2, 3.3, 3.4, 4.0
+
+A pre-built gem carries one compiled extension per Ruby ABI, so installing under a Ruby
+outside that list falls back to building from source and needs a Rust toolchain (>= 1.85).
+Ruby 4.0 support arrived in 0.3.0; earlier versions cannot compile against it at all.
 
 ## Contributing
 
