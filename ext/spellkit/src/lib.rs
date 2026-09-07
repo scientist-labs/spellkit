@@ -1,7 +1,7 @@
 mod symspell;
 mod guards;
 
-use magnus::{class, define_module, function, method, prelude::*, Error, RArray, RHash, Ruby, Value, TryConvert};
+use magnus::{function, method, prelude::*, Error, RArray, RHash, Ruby, Value, TryConvert};
 use std::sync::{Arc, RwLock};
 use symspell::SymSpell;
 use guards::Guards;
@@ -264,10 +264,10 @@ impl Checker {
 
         if let Some(ref symspell) = state.symspell {
             let suggestions = symspell.suggestions(&word, max_suggestions);
-            let result = RArray::new();
+            let result = ruby.ary_new();
 
             for suggestion in suggestions {
-                let hash = RHash::new();
+                let hash = ruby.hash_new();
                 hash.aset("term", suggestion.term)?;
                 hash.aset("distance", suggestion.distance)?;
                 hash.aset("freq", suggestion.frequency)?;
@@ -320,7 +320,7 @@ impl Checker {
             return Err(Error::new(ruby.exception_runtime_error(), "Dictionary not loaded. Call load! first"));
         }
 
-        let result = RArray::new();
+        let result = ruby.ary_new();
 
         if let Some(ref symspell) = state.symspell {
             for token in tokens.into_iter() {
@@ -336,8 +336,9 @@ impl Checker {
     }
 
     fn stats(&self) -> Result<RHash, Error> {
+        let ruby = Ruby::get().unwrap();
         let state = self.state.read().unwrap();
-        let stats = RHash::new();
+        let stats = ruby.hash_new();
 
         if !state.loaded {
             stats.aset("loaded", false)?;
@@ -376,9 +377,9 @@ impl Checker {
 }
 
 #[magnus::init]
-fn init(_ruby: &Ruby) -> Result<(), Error> {
-    let module = define_module("SpellKit")?;
-    let checker_class = module.define_class("Checker", class::object())?;
+fn init(ruby: &Ruby) -> Result<(), Error> {
+    let module = ruby.define_module("SpellKit")?;
+    let checker_class = module.define_class("Checker", ruby.class_object())?;
 
     checker_class.define_singleton_method("new", function!(Checker::new, 0))?;
     checker_class.define_method("load!", method!(Checker::load_full, 1))?;

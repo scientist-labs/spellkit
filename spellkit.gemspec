@@ -56,6 +56,9 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "webmock"
   spec.add_development_dependency "standard", "~> 1.3"
   spec.add_development_dependency "irb"
+  # benchmark left the default gems in Ruby 4.0, so spec/performance_spec.rb's
+  # `require "benchmark"` fails there unless it is declared.
+  spec.add_development_dependency "benchmark"
   spec.add_development_dependency "benchmark-ips"
   spec.add_development_dependency "ffi-aspell"
 end
