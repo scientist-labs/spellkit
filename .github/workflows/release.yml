@@ -57,6 +57,11 @@ jobs:
       # "spellkit", so ext-name / gemspec / platform-gem-env all resolve to their
       # defaults (spellkit, spellkit.gemspec, RUST_GEM_PLATFORM) and are omitted.
       gem-name: spellkit
+      # 4.0 added in 0.3.0. The shared workflow's default is 3.1-3.4 and deliberately
+      # excludes 4.0, because Ruby 4.0 changed the C API (rb_sys::RTypedData lost
+      # typed_flag, rb_fiber_raise's argv became *mut) and magnus 0.7 cannot compile
+      # against it. spellkit is on magnus 0.8 as of this version, so it can.
+      ruby-versions: "3.1,3.2,3.3,3.4,4.0"
       version-command: ruby -r./lib/spellkit/version -e 'print SpellKit::VERSION'
       version: ${{ inputs.version }}
       bump-command: |

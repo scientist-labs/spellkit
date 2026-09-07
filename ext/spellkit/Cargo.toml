@@ -11,7 +11,7 @@ name = "spellkit"
 crate-type = ["cdylib"]
 
 [dependencies]
-magnus = { version = "0.7", features = ["rb-sys"] }
+magnus = { version = "0.8", features = ["rb-sys"] }
 hashbrown = "0.15"
 unicode-normalization = "0.1"
 regex = "1.11"
