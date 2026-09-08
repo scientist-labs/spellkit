@@ -17,12 +17,19 @@ rescue LoadError
   require "spellkit/spellkit"
 end
 
+require_relative "spellkit/packs"
+require_relative "spellkit/lazy_checker"
+
 module SpellKit
   class Error < StandardError; end
   class NotLoadedError < Error; end
   class FileNotFoundError < Error; end
   class InvalidArgumentError < Error; end
   class DownloadError < Error; end
+
+  # Raised when a pack name is not registered - almost always a data gem missing from
+  # the Gemfile, since a pack registers itself when its gem loads.
+  class UnknownPackError < Error; end
 
   # Default dictionary: SymSpell English 80k frequency dictionary
   DEFAULT_DICTIONARY_URL = "https://raw.githubusercontent.com/wolfgarbe/SymSpell/master/SymSpell.FrequencyDictionary/en-80k.txt"
@@ -98,6 +105,83 @@ module SpellKit
     def healthcheck
       default.healthcheck
     end
+
+    # ----------------------------------------------------------------------------------
+    # Dictionary packs
+    #
+    # SpellKit still bundles no dictionaries. A pack lives in its own gem, registers
+    # itself on load (see SpellKit::Packs), and brings the tuning that was measured
+    # against its own data. These methods are the mechanism only - SpellKit knows the
+    # name of no pack.
+    # ----------------------------------------------------------------------------------
+
+    # Configure the DEFAULT checker from a registered pack, so plain SpellKit.correct
+    # becomes domain-aware.
+    #
+    #   SpellKit.enable_dictionary(:general_medical)
+    #   SpellKit.enable_dictionary(:general_medical, lazy: true)     # defer the index build
+    #   SpellKit.enable_dictionary(:general_medical, edit_distance: 1)
+    #   SpellKit.enable_dictionary(dictionary: "my.tsv")             # your own files
+    #
+    # `lazy: true` is strongly recommended from a Rails initializer - see LazyChecker for
+    # why. Eager stays the default so this is non-breaking.
+    def enable_dictionary(pack = nil, lazy: false, **options)
+      # Resolve eagerly even when lazy, so an unregistered pack (usually a data gem
+      # missing from the Gemfile) fails at boot rather than on a user's first search.
+      @dictionary_pack = pack.nil? ? nil : Packs.fetch(pack)
+
+      self.default = if lazy
+        LazyChecker.new(pack, options)
+      else
+        load!(**pack_load_options(pack, **options))
+      end
+    end
+
+    # An INDEPENDENT checker, for running more than one pack at once. Does not touch the
+    # default checker.
+    def dictionary_checker(pack = nil, lazy: false, **options)
+      Packs.fetch(pack) unless pack.nil?
+      return LazyChecker.new(pack, options) if lazy
+
+      Checker.new.load!(**pack_load_options(pack, **options))
+    end
+
+    # True once the default checker holds a real index.
+    def dictionary_loaded?
+      checker = @default
+      return false if checker.nil?
+      return checker.loaded? if checker.is_a?(LazyChecker)
+
+      true
+    end
+
+    # Force a deferred load now; no-op when already loaded or configured eagerly.
+    def load_dictionary!
+      checker = @default
+      checker.load_now! if checker.is_a?(LazyChecker)
+      checker
+    end
+
+    # The pack backing the default checker, or nil when configured from raw files.
+    attr_reader :dictionary_pack
+
+    private
+
+    # Internal: resolve a pack name (or a bare options hash) into load! keyword arguments.
+    # Private on purpose - see LazyChecker#resolved_options.
+    def pack_load_options(pack = nil, **overrides)
+      if pack.nil?
+        unless overrides.key?(:dictionary)
+          raise InvalidArgumentError,
+            "Pass a registered pack name or a dictionary: of your own. " \
+            "Registered packs: #{Packs.names.inspect}"
+        end
+
+        return overrides
+      end
+
+      Packs.fetch(pack).load_options(**overrides)
+    end
   end
 end
 
@@ -113,10 +197,9 @@ class SpellKit::Checker
   alias_method :_rust_healthcheck, :healthcheck
 
   def load!(dictionary: nil, protected_path: nil, protected_patterns: [],
-            edit_distance: 1, frequency_threshold: 10.0,
-            skip_urls: false, skip_emails: false, skip_hostnames: false,
-            skip_code_patterns: false, skip_numbers: false, **_options)
-
+    edit_distance: 1, frequency_threshold: 10.0,
+    skip_urls: false, skip_emails: false, skip_hostnames: false,
+    skip_code_patterns: false, skip_numbers: false, **_options)
     # Validate dictionary parameter
     raise SpellKit::InvalidArgumentError, "dictionary parameter is required" if dictionary.nil?
 
@@ -320,7 +403,7 @@ class SpellKit::Checker
     raise SpellKit::InvalidArgumentError, "Invalid URL: #{url} (#{e.message})"
   rescue Timeout::Error => e
     raise SpellKit::DownloadError, "Download timed out: #{url} (#{e.message})"
-  rescue StandardError => e
+  rescue => e
     raise SpellKit::DownloadError, "Failed to download dictionary: #{e.message}"
   end
 
@@ -356,9 +439,9 @@ class SpellKit::Checker
         raise SpellKit::DownloadError, "HTTP #{response.code}: #{response.message} (#{url})"
       end
     end
-  rescue Net::OpenTimeout => e
+  rescue Net::OpenTimeout
     raise Timeout::Error, "Connection timeout after #{open_timeout}s: #{url}"
-  rescue Net::ReadTimeout => e
+  rescue Net::ReadTimeout
     raise Timeout::Error, "Read timeout after #{read_timeout}s: #{url}"
   rescue SocketError => e
     raise SpellKit::DownloadError, "Network error: #{e.message} (#{url})"

@@ -240,9 +240,91 @@ MyBrand
 SpecialTerm
 ```
 
+## Dictionary Packs
+
+SpellKit still bundles no dictionaries. A **pack** is a separate gem that carries the data
+and registers itself when it loads, so you choose packs in your Gemfile:
+
+```ruby
+gem "spellkit"
+gem "spellkit-general-medical"   # drug, condition and gene vocabulary + general English
+```
+
+```ruby
+SpellKit.enable_dictionary(:general_medical, lazy: true)
+SpellKit.correct("acetaminphen")   # => "acetaminophen"
+```
+
+A pack ships the tuning that was measured against its own data, so you don't have to
+rediscover `edit_distance` and `frequency_threshold` yourself. Override anything:
+
+```ruby
+SpellKit.enable_dictionary(:general_medical, edit_distance: 1)
+```
+
+SpellKit knows the name of no pack — it provides only the mechanism, so a pack can ship
+new terms or new tuning without SpellKit releasing anything.
+
+### If you load this from a Rails initializer, read this
+
+**An initializer runs in every process that boots the app** — web, `rails db:migrate`,
+`rake`, `console`, sidecars — not just the one that searches. Loading a pack eagerly makes
+all of them pay, and a ~200k-term pack at `edit_distance: 2` measures **~2.1 GB resident
+and ~5.5s**. That has already OOM-killed a memory-constrained migrate init container in
+production.
+
+Pass `lazy: true`. Registration then costs nothing and the index is built on first real
+use, which a migrate or rake process never reaches:
+
+| | time | RSS |
+|---|---|---|
+| `enable_dictionary(..., lazy: true)` | 0.000s | +0 MB |
+| first `correct()` after that | ~5.5s | +2,076 MB |
+| every later call | ~0.0001s | +0 MB |
+
+**Lazy moves the cost, it doesn't remove it.** For a web server you usually want the
+server to pay it rather than the first user, so warm it at worker boot:
+
+```ruby
+# config/puma.rb
+on_worker_boot { SpellKit.load_dictionary! }
+```
+
+`stats` and `healthcheck` deliberately **do not** trigger the load — they report
+`{"loaded" => false, "deferred" => true}`. A liveness probe must not be able to build the
+index in the very process `lazy` protects.
+
+```ruby
+SpellKit.dictionary_loaded?   # false until something forces the load
+SpellKit.load_dictionary!     # force it now; idempotent, no-op when eager
+```
+
+Memory scales steeply with `edit_distance`: the same pack is **484 MB at 1** versus
+**2.1 GB at 2**, because SymSpell's deletion index grows sharply with distance. If you are
+memory-constrained, that knob matters more than lazy loading does.
+
+### Writing a pack gem
+
+A pack gem ships its data and one registration call:
+
+```ruby
+# lib/spellkit-my-domain.rb
+require "spellkit"
+
+SpellKit::Packs.register(:my_domain,
+  dictionary: File.expand_path("../data/dictionary.tsv", __dir__),
+  protected_path: File.expand_path("../data/protected.txt", __dir__),
+  defaults: {edit_distance: 1, frequency_threshold: 10.0},
+  summary: "What this pack covers")
+```
+
+Bundler requires it automatically, so `SpellKit.enable_dictionary(:my_domain)` then works.
+Registration verifies the files exist, so a packaging mistake fails while the stack still
+points at your gem.
+
 ## Dictionary Sources
 
-SpellKit doesn't bundle dictionaries, but works with several sources:
+SpellKit works with several raw dictionary sources directly:
 
 ### Use the Default Dictionary (Recommended)
 ```ruby
