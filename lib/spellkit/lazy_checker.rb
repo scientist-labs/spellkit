@@ -45,7 +45,7 @@ module SpellKit
 
       @mutex.synchronize do
         # Re-check inside the lock; another thread may have loaded while we waited.
-        @checker ||= Checker.new.load!(**SpellKit.pack_load_options(@pack_name, **@options))
+        @checker ||= Checker.new.load!(**resolved_options)
       end
     end
 
@@ -74,6 +74,15 @@ module SpellKit
     end
 
     private
+
+    # Resolved here rather than through a module-level helper so that helper can stay
+    # private: 1.0.0 freezes the public surface, and an internal seam that only exists to
+    # let one collaborator reach a private method should not be part of it.
+    def resolved_options
+      return @options if @pack_name.nil?
+
+      Packs.fetch(@pack_name).load_options(**@options)
+    end
 
     def deferred_report
       {"loaded" => false, "deferred" => true, "pack" => @pack_name&.to_s}

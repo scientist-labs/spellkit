@@ -165,7 +165,10 @@ module SpellKit
     # The pack backing the default checker, or nil when configured from raw files.
     attr_reader :dictionary_pack
 
-    # Resolve a pack name (or a bare options hash) into load! keyword arguments.
+    private
+
+    # Internal: resolve a pack name (or a bare options hash) into load! keyword arguments.
+    # Private on purpose - see LazyChecker#resolved_options.
     def pack_load_options(pack = nil, **overrides)
       if pack.nil?
         unless overrides.key?(:dictionary)

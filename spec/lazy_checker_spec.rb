@@ -74,9 +74,11 @@ RSpec.describe SpellKit::LazyChecker do
     it "builds the index at most once under concurrent first use" do
       # Without the mutex two simultaneous first requests each build an index. Count the
       # builds rather than trusting the lock by inspection.
+      # Count actual index builds rather than a helper call: load! IS the expensive thing,
+      # so counting it cannot drift if the resolution path is refactored again.
       builds = 0
       counter = Mutex.new
-      allow(SpellKit).to receive(:pack_load_options).and_wrap_original do |original, *args, **kwargs|
+      allow_any_instance_of(SpellKit::Checker).to receive(:load!).and_wrap_original do |original, *args, **kwargs|
         counter.synchronize { builds += 1 }
         original.call(*args, **kwargs)
       end
